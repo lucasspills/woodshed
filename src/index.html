@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Woodshed</title>
+<meta name="description" content="Woodshed: a daily, graded, gamified piano practice plan.">
+<meta name="theme-color" content="#1E2C25">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<!--STYLE-->
+</head>
+<body>
+<a class="skip" href="#view">Skip to content</a>
+<div id="app" class="app">
+  <nav class="rail" aria-label="Main">
+    <a class="brand" href="#tonight" aria-label="Woodshed, tonight">
+      <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true">
+        <circle cx="31" cy="9" r="5" fill="#DAD7CD"/>
+        <path d="M6 20 L19 10 L32 20 V34 H6 Z" fill="#588157"/>
+        <path d="M4 21 L19 9 L34 21" fill="none" stroke="#344E41" stroke-width="3" stroke-linejoin="round"/>
+        <rect x="21" y="21" width="7" height="6" rx="1" fill="#E9C46A"/>
+        <rect x="10" y="24" width="6" height="10" fill="#1E2C25"/>
+      </svg>
+      <span class="brand-name">Woodshed</span>
+    </a>
+    <a class="nav-link" href="#tonight" data-view="tonight">
+      <svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
+      <span>Tonight</span>
+    </a>
+    <a class="nav-link" href="#play" data-view="play">
+      <svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18V9.5C4 6.5 6.5 4 9.5 4c2.6 0 3.6 1.6 4.4 3.3.8 1.7 2 2.7 4.1 3.2 1.5.4 1.9 1.4 1.9 2.5V18z"/><path d="M4 14.5h16M8 14.5V18M12 14.5V18M16 14.5V18"/></svg>
+      <span>Play</span>
+    </a>
+    <a class="nav-link" href="#path" data-view="path">
+      <svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="18" r="2.2"/><circle cx="12" cy="7" r="2.2"/><circle cx="18" cy="15" r="2.2"/><path d="M7.2 16.1l3.6-7.2M13.4 8.7l3.4 4.6"/></svg>
+      <span>Path</span>
+    </a>
+    <a class="nav-link" href="#progress" data-view="progress">
+      <svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19v-7M12 19V6M19 19v-10"/></svg>
+      <span>Progress</span>
+    </a>
+    <a class="nav-link" href="#keyboard" data-view="keyboard">
+      <svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M8 6v7M12 6v7M16 6v7"/></svg>
+      <span>Keyboard</span>
+    </a>
+    <a class="nav-link" href="#settings" data-view="settings">
+      <svg class="icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>
+      <span>Settings</span>
+    </a>
+    <button type="button" id="kbd-pill" class="kbd-pill"><span class="kbd-dot" aria-hidden="true"></span><span class="kbd-text">Connect keyboard</span></button>
+  </nav>
+  <main id="view" class="view" tabindex="-1"></main>
+</div>
+
+<section id="game" class="game" hidden aria-label="Chord Runner">
+  <canvas id="game-canvas"></canvas>
+  <div id="hud" class="hud"></div>
+</section>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<noscript><p style="padding:2rem;color:#DAD7CD;background:#1E2C25">Woodshed needs JavaScript. Open it in Chrome.</p></noscript>
+<!--SCRIPT-->
+</body>
+</html>
