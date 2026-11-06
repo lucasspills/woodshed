@@ -94,6 +94,8 @@ tests/                logic.py (in-page logic), smoke.py (end to end), play.py (
 
 ## Next builds
 
+**Next up: a super customizable metronome** (Lucas's top priority, 5 Nov 2026). He uses the Tempo app and wants that level of control, especially custom beat patterns. Not started. Ask him which Tempo features he uses most before designing it.
+
 0. **Improv Coach ("Idea of the Day")**, the next priority. Pick a progression and key; backing loop (bass plus soft chords) at a chosen tempo, which can now use the Bass and Rhodes/pad sounds; chord names and numbers as they go by; one challenge, checked over MIDI, with XP. Progression bank: 1-5-6-4, 6-4-1-5, 1-6-4-5, 1-4-5, major 2-5-1 and 2-5-1-6, minor 2-5-1, minor walk-down 1–♭7–♭6–5, and songs he's learning (Stand By Me, Let It Be, Für Elise). Challenges: borrowed iv / ♭VI / ♭VII, raised 7th over V in minor, sus4 resolving to 3, approach notes, the loop around the circle of fifths, voice-leading score, call-and-response. Settings: key, tempo, progression, difficulty, "surprise me".
 1. **Note Rain + generated sight-reading** (research report §3).
 2. **Score Quest:** MusicXML import with OpenSheetMusicDisplay, Prepare and Assess modes.
