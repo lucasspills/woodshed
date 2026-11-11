@@ -88,11 +88,12 @@
     WS.progress.applyFreezes();
     WS.log.restoreSession();
     WS.ach.boot();
+    setTimeout(() => WS.ui.showAsk(), 800);
     checkDay();
 
     window.addEventListener('hashchange', () => WS.ui.go(location.hash.slice(1) || 'tonight'));
     WS.$('#kbd-pill').addEventListener('click', () => { location.hash = '#keyboard'; });
-    WS.$('#session-pill').addEventListener('click', () => { if (WS.recorder.recording) location.hash = '#play'; else if (WS.log.session) WS.ui.logForm(); });
+    WS.$('#session-pill').addEventListener('click', () => { if (WS.recorder.recording) location.hash = '#play'; else location.hash = '#stats'; });
     WS.bus.on('inputstatus', () => WS.ui.refreshRail());
     WS.ui.go(location.hash.slice(1) || 'tonight');
 

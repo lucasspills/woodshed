@@ -1,7 +1,7 @@
 'use strict';
 /* Woodshed core: namespace, DOM helpers, event bus, dates, small utils. */
 const WS = (window.WS = window.WS || {});
-WS.VERSION = '0.4.0';
+WS.VERSION = '0.5.0';
 WS.DEBUG = /[?&]debug\b/.test(location.search);
 
 WS.$ = (sel, root = document) => root.querySelector(sel);

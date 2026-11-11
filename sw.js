@@ -1,9 +1,9 @@
-/* Woodshed service worker, version 17dc6a5331 (written by build.py).
+/* Woodshed service worker, version 6003fa8e11 (written by build.py).
    - The page is fetched fresh whenever you're online, so updates arrive on the next open; offline, the
      last copy is used.
    - Sounds are cached the first time they load and come from the Mac after that. Their URLs carry a
      version, so a rebuilt instrument is fetched again. */
-const SHELL = 'woodshed-shell-17dc6a5331';
+const SHELL = 'woodshed-shell-6003fa8e11';
 const SOUNDS = 'woodshed-sounds-1';
 const SHELL_FILES = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
 

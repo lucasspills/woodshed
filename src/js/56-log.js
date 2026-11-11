@@ -50,36 +50,133 @@
       a.areas[area] = (a.areas[area] || 0) + dt;
       const hr = new Date(WS.nowMs()).getHours();
       a.hours[hr] = (a.hours[hr] || 0) + dt;
-      if (LG.session) LG.session.played += dt;
     }
     last = now;
+    LG.onNote();
     WS.store.save();
   };
   WS.bus.on('noteon', (e) => { if (e && e.src === 'playback') return; LG.track(); });
 
-  /* ---------- The session timer ---------- */
-  LG.session = null; // { start (ms), areas, played (sec of notes while running) }
-  LG.startSession = (areas = []) => {
-    LG.session = { start: WS.nowMs(), areas, played: 0, paused: 0, pausedAt: null };
+  /* ---------- Automatic sessions ----------
+     The first note opens a session; 10 minutes without a note closes it. Gaps over 3 minutes inside a
+     session don't count as practice. What you did in the app (rounds, ear games, metronome, recordings)
+     is collected as you go. When a session closes with free play the app can't label, it asks once. */
+  LG.GAP_END = 10 * 60 * 1000;
+  LG.BREAK = 3 * 60 * 1000;
+  LG.MIN_KEEP = 2;
+  LG.session = null; // { start, last, active (ms), areaMs, did: [] }
+
+  const openSession = (now) => {
+    LG.session = { start: now, last: now, active: 0, areaMs: {}, did: [] };
     WS.S().openSession = LG.session;
-    WS.store.save();
     WS.bus.emit('session', { on: true });
+    return LG.session;
   };
-  LG.pauseSession = () => {
+  LG.onNote = () => {
+    const now = WS.nowMs();
+    let x = LG.session;
+    if (x && now - x.last > LG.GAP_END) { LG.closeSession(); x = null; }
+    if (!x) x = openSession(now);
+    else {
+      const gap = now - x.last;
+      if (gap > 0 && gap < LG.BREAK) {
+        x.active += gap;
+        const ar = LG.areaNow();
+        x.areaMs[ar] = (x.areaMs[ar] || 0) + gap;
+      }
+    }
+    x.last = now;
+  };
+  LG.sessionMinutes = () => (LG.session ? LG.session.active / 60000 : 0);
+  LG.note = (item) => { if (LG.session) { LG.session.did.push(item); WS.store.save(); } };
+
+  /* One line describing what happened in a session */
+  LG.describe = (did) => {
+    const parts = [];
+    const cr = did.filter((d) => d.t === 'cr');
+    const byLevel = {};
+    cr.forEach((d) => { const b = (byLevel[d.id] = byLevel[d.id] || { n: 0, tempo: 0, best: 0, total: d.n }); b.n++; b.tempo = Math.max(b.tempo, d.tempo); b.best = Math.max(b.best, d.hits); });
+    for (const [id, b] of Object.entries(byLevel)) {
+      const def = WS.levels.def(id);
+      parts.push(`${def ? def.name : id}: ${b.n} round${b.n > 1 ? 's' : ''}, best ${b.best}/${b.total} at ♩ ${b.tempo}`);
+    }
+    const ear = did.filter((d) => d.t === 'ear');
+    const byGame = {};
+    ear.forEach((d) => { const k = `${d.gid}:${d.li}`; const b = (byGame[k] = byGame[k] || { n: 0, best: 0, d }); b.n++; b.best = Math.max(b.best, d.score); });
+    for (const b of Object.values(byGame)) {
+      const g = WS.ear && WS.ear.def(b.d.gid);
+      parts.push(`${g ? `${g.name}, ${g.levels[b.d.li].name}` : b.d.gid}: best ${b.best}/10`);
+    }
+    const mt = did.filter((d) => d.t === 'metro');
+    if (mt.length) {
+      const secs = mt.reduce((a, d) => a + d.secs, 0);
+      const bpms = [...new Set(mt.map((d) => d.bpm))];
+      parts.push(`Metronome ${LG.fmtMin(secs / 60)} at ♩ ${bpms.slice(0, 3).join(', ')} (${mt[mt.length - 1].pattern})`);
+    }
+    const rc = did.filter((d) => d.t === 'rec');
+    if (rc.length) parts.push(`${rc.length} recording${rc.length > 1 ? 's' : ''}`);
+    return parts.join(' · ');
+  };
+
+  LG.closeSession = () => {
     const x = LG.session;
-    if (!x) return;
-    if (x.pausedAt) { x.paused += WS.nowMs() - x.pausedAt; x.pausedAt = null; } else x.pausedAt = WS.nowMs();
+    LG.session = null;
+    delete WS.S().openSession;
+    if (!x) return null;
+    const minutes = x.active / 60000;
+    WS.bus.emit('session', { on: false });
+    if (minutes < LG.MIN_KEEP) { WS.store.save(); return null; }
+    const areaMin = {};
+    for (const [a, ms] of Object.entries(x.areaMs)) if (ms >= 20000) areaMin[a] = Math.round((ms / 60000) * 10) / 10;
+    const day = WS.dateKey(new Date(x.start));
+    const e = LG.add({
+      day, at: new Date(x.start).toISOString(), minutes: Math.round(minutes),
+      areas: Object.keys(areaMin), areaMin, auto: true, summary: LG.describe(x.did),
+      ask: (areaMin.free || 0) >= LG.MIN_KEEP,
+    });
+    if (e.ask) WS.bus.emit('log-ask', e);
+    return e;
+  };
+
+  /* The one-tap answer: what was the free play? */
+  LG.ASK_CHOICES = [
+    ['reading', 'Sight-reading'], ['score', 'Score piece'], ['both', 'Both of those'],
+    ['improv', 'Improv'], ['ear', 'Songs by ear'], ['repertoire', 'Old songs'], ['free', 'Just playing'],
+  ];
+  LG.pendingAsk = () => (st().log || []).filter((e) => e.ask).slice(-1)[0] || null;
+  LG.answerAsk = (id, choice) => {
+    const e = st().log.find((x) => x.id === id);
+    if (!e) return;
+    e.ask = false;
+    const free = (e.areaMin && e.areaMin.free) || 0;
+    if (choice !== 'free' && free) {
+      delete e.areaMin.free;
+      const to = choice === 'both' ? ['reading', 'score'] : [choice];
+      to.forEach((a) => { e.areaMin[a] = Math.round(((e.areaMin[a] || 0) + free / to.length) * 10) / 10; });
+      e.areas = Object.keys(e.areaMin);
+      if (to.includes('reading')) WS.progress.setTask(e.day, 'sight', true);
+      if (to.includes('score')) WS.progress.setTask(e.day, 'score', true);
+    }
+    e.answered = choice;
     WS.store.save();
-    WS.bus.emit('session', { on: true });
+    WS.bus.emit('log', e);
   };
-  LG.sessionSecs = () => {
-    const x = LG.session;
-    if (!x) return 0;
-    const end = x.pausedAt || WS.nowMs();
-    return Math.max(0, (end - x.start - x.paused) / 1000);
+  LG.dismissAsk = (id) => { const e = st().log.find((x) => x.id === id); if (e) { e.ask = false; WS.store.save(); } };
+
+  LG.restoreSession = () => {
+    const o = WS.S().openSession;
+    if (!o) return;
+    LG.session = o;
+    if (!o.did) o.did = [];
+    if (WS.nowMs() - o.last > LG.GAP_END) LG.closeSession();
   };
-  LG.cancelSession = () => { LG.session = null; delete WS.S().openSession; WS.store.save(); WS.bus.emit('session', { on: false }); };
-  LG.restoreSession = () => { const o = WS.S().openSession; if (o) LG.session = o; };
+  setInterval(() => { if (LG.session && WS.nowMs() - LG.session.last > LG.GAP_END) LG.closeSession(); }, 15000);
+
+  // What you did, collected into the open session
+  WS.bus.on('round', (d) => LG.note({ t: 'cr', id: d.id, tempo: d.tempo, hits: d.hits, n: d.n }));
+  WS.bus.on('ear', (d) => LG.note({ t: 'ear', gid: d.gid, li: d.li, score: d.score }));
+  WS.bus.on('metro', (d) => { if (d.running === false && d.secs > 20 && d.cfg) LG.note({ t: 'metro', secs: d.secs, bpm: d.bpm, pattern: WS.metro.patternLabel(d.cfg.seq) }); });
+  WS.bus.on('record', () => LG.note({ t: 'rec' }));
 
   /* Save a log entry. Logging sight-reading or the score piece also ticks them on Tonight. */
   LG.add = (e) => {
@@ -94,7 +191,10 @@
       bpm: e.bpm ? Number(e.bpm) : null,
       rating: e.rating || null,
       notes: e.notes || '',
-      timed: !!e.timed,
+      auto: !!e.auto,
+      areaMin: e.areaMin || null,
+      summary: e.summary || '',
+      ask: !!e.ask,
     };
     s.log.push(entry);
     s.log.sort((a, b) => (a.at < b.at ? -1 : 1));
@@ -114,16 +214,6 @@
     s.log = s.log.filter((x) => x.id !== id);
     WS.store.save();
   };
-  LG.finishSession = (form) => {
-    const x = LG.session;
-    const minutes = form.minutes != null ? form.minutes : Math.round(LG.sessionSecs() / 60);
-    LG.session = null;
-    delete WS.S().openSession;
-    const e = LG.add({ ...form, minutes, timed: true, at: x ? new Date(x.start).toISOString() : undefined });
-    WS.bus.emit('session', { on: false });
-    return e;
-  };
-
   /* ---------- Numbers ----------
      Minutes per day blend the two sources: logged sessions, and played time the keyboard saw.
      A day counts whichever is larger, so a logged session and the notes inside it aren't counted twice. */
@@ -139,6 +229,7 @@
     const out = {};
     for (const e of s.log) {
       if (e.day < fromKey || e.day > toKey) continue;
+      if (e.areaMin && Object.keys(e.areaMin).length) { for (const [a, m] of Object.entries(e.areaMin)) out[a] = (out[a] || 0) + m; continue; }
       const per = e.minutes / Math.max(1, e.areas.length || 1);
       (e.areas.length ? e.areas : ['free']).forEach((a) => { out[a] = (out[a] || 0) + per; });
     }

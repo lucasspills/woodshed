@@ -66,6 +66,10 @@
       this.pops = [];
       this.stumbleAt = -1;
       this.combo = 0;
+      this.score = 0;
+      this.mult = 1;
+      this.flashAt = -1;
+      this.hideNames = (WS.S().settings.crView || 'both') === 'staff';
       this.running = false;
       this.reduced = WS.reducedMotion();
       this.buildScenery();
@@ -173,6 +177,14 @@
       if (start < now) { start = now; len = Math.max(0.3, (d + dur / 2) - now); }
       this.jumps.push({ start, dur: len, i });
       this.combo++;
+      // Score: 100 a chord, 150 if perfect, times a multiplier that grows every 4 in a row (max 4x)
+      const m = Math.min(4, 1 + Math.floor(this.combo / 4));
+      if (m > this.mult) { this.pop(`${m}× multiplier`, COLORS.gold || '#E9C46A', i, true); A.sfx('silver'); }
+      this.mult = m;
+      this.score += (perfect ? 150 : 100) * m;
+      if (perfect) this.flashAt = performance.now();
+      if (this.hud.setScore) this.hud.setScore(this.score, this.mult);
+      this.sparkle(this.charX + this.cs * 0.5, this.groundY - this.cs * 1.4, perfect ? COLORS.paper : COLORS.hit);
       this.pop(perfect ? 'Perfect' : off < 0 ? 'Good · early' : 'Good · late', perfect ? COLORS.paper : COLORS.hit, i);
       A.sfx(perfect ? 'perfect' : 'good');
       this.hud.setPrompt(this.currentIndex(), this);
@@ -190,6 +202,8 @@
         this.results[i] = { hit: false, reason };
         this.broken[i] = true;
         this.combo = 0;
+        this.mult = 1;
+        if (this.hud.setScore) this.hud.setScore(this.score, 1);
         this.stumbleAt = A.heardNow();
         this.burst(i);
         this.pop(reason, COLORS.miss, i, true);
@@ -275,7 +289,7 @@
       const meanOffsetMs = offs.length ? Math.round(offs.reduce((a, b) => a + b, 0) / offs.length) : null;
       const misses = this.results.map((r, i) => (r && !r.hit ? { sym: this.prompts[i].sym, hint: this.prompts[i].hint || '', reason: r.reason } : null)).filter(Boolean);
       const durationSec = (performance.now() - this.startPerf) / 1000;
-      this.onDone({ n, hits, perfects, results: this.results, misses, meanOffsetMs, durationSec });
+      this.onDone({ n, hits, perfects, results: this.results, misses, meanOffsetMs, durationSec, score: this.score });
     }
 
     /* ---------------- Drawing ---------------- */
@@ -416,6 +430,11 @@
       }
       g.globalAlpha = 1;
       g.textAlign = 'left';
+      // Perfect flash
+      if (this.flashAt > 0 && !this.reduced) {
+        const fa = (pn - this.flashAt) / 180;
+        if (fa < 1) { g.globalAlpha = 0.14 * (1 - fa); g.fillStyle = '#F4F1E6'; g.fillRect(0, 0, W, H); g.globalAlpha = 1; }
+      }
     }
 
     hills(off, baseY, amp, color, freq, phase) {
@@ -492,6 +511,14 @@
       g.strokeStyle = 'rgba(30,44,37,0.25)';
       g.lineWidth = 1;
       g.stroke();
+      if (this.hideNames && !(res && res.hit)) {
+        g.fillStyle = COLORS.ink;
+        g.textAlign = 'center';
+        g.font = `700 ${Math.round(lh * 0.7)}px Kalam, "Marker Felt", cursive`;
+        g.fillText('♪', x, ly + lh * 0.74);
+        g.textAlign = 'left';
+        return;
+      }
       let size = lh * 0.78;
       const w = WS.measureSym(g, prompt.sym, size);
       if (w > lw * 0.86) size *= (lw * 0.86) / w;

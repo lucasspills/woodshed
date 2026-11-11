@@ -253,7 +253,7 @@
     });
     if (s.rounds.length > 600) s.rounds.splice(0, s.rounds.length - 600);
     WS.store.save();
-    WS.bus.emit('round', { id: plan.id, passed, earned: out.earned });
+    WS.bus.emit('round', { id: plan.id, passed, earned: out.earned, tempo: plan.tempo, hits: res.hits, n: res.n, score: res.score || 0 });
     return out;
   };
 

@@ -106,9 +106,7 @@ with sync_playwright() as p:
     # ---------------- Practice log + Tonight ----------------
     pg.goto(URL + "#stats")
     pg.wait_for_selector(".session-card")
-    pg.click(".session-card >> text=Start a session")
-    check(pg.is_visible("#session-pill"), "the session pill shows in the rail")
-    pg.click(".session-card >> text=Finish and log")
+    pg.click(".session-card >> text=Log practice away from the app")
     pg.wait_for_selector("#log-min")
     pg.fill("#log-min", "25")
     pg.click(".area-chips >> text=Sight-reading")

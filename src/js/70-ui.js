@@ -449,6 +449,21 @@
     const nextBox = h('p', { class: 'hud-next' });
     const countBox = h('div', { class: 'hud-count', 'aria-hidden': 'true' });
     const comboBox = h('p', { class: 'hud-combo' });
+    const staffBox = h('div', { class: 'hud-staff' });
+    const scoreBox = h('div', { class: 'hud-score' }, h('span', { class: 'hs-num', text: '0' }), h('span', { class: 'hs-mult', text: '' }));
+    const best = L.state(id).bestScore || 0;
+    const VIEW_LABEL = { both: 'Name + staff', staff: 'Staff only', names: 'Name only' };
+    const viewBtn = h('button', { type: 'button', class: 'btn btn-ghost hud-view', title: 'Change what each chord shows (V)' });
+    const paintView = () => { viewBtn.textContent = `Show: ${VIEW_LABEL[WS.S().settings.crView || 'both']} (V)`; hud.dataset.view = WS.S().settings.crView || 'both'; };
+    const cycleView = () => {
+      const order = ['both', 'staff', 'names'];
+      const cur = WS.S().settings.crView || 'both';
+      WS.S().settings.crView = order[(order.indexOf(cur) + 1) % 3];
+      WS.store.save();
+      paintView();
+      if (runner) { runner.hideNames = WS.S().settings.crView === 'staff'; hudApi.setPrompt(runner.currentIndex(), runner); }
+    };
+    viewBtn.onclick = cycleView;
     gameKeys = miniKeyboard();
     const holding = h('p', { class: 'hud-hint', text: WS.input.qwertyActive() ? 'Computer keys: bottom row from Z is C3, top row from Q is C4. Press − or = to shift octaves.' : '' });
 
@@ -459,11 +474,15 @@
           h('span', { class: 'hud-level-name', text: d.name }),
           plan.cold ? h('span', { class: 'badge badge-gold' }, UI.oneStar('gold', 13), ' Cold check') : null,
           plan.challenge ? h('span', { class: 'badge', text: '★2 attempt' }) : null),
-        h('div', { class: 'hud-meta' }, h('span', { class: 'hud-tempo', text: `♩ = ${plan.tempo}` }), dots)),
-      h('div', { class: 'hud-prompt' }, symBox, subBox, nextBox, comboBox),
+        h('div', { class: 'hud-meta' }, viewBtn, h('span', { class: 'hud-tempo', text: `♩ = ${plan.tempo}` }), dots)),
+      h('div', { class: 'hud-scorebar' }, scoreBox, h('span', { class: 'hs-best', text: best ? `Best ${WS.fmtInt(best)}` : 'No best score yet' })),
+      h('div', { class: 'hud-prompt' }, staffBox, symBox, subBox, nextBox, comboBox),
       countBox,
       h('div', { class: 'hud-bottom' }, gameKeys, holding));
     UI.glyphify(hud);
+    paintView();
+    const onV = (e) => { if ((e.key === 'v' || e.key === 'V') && runner && runner.running) cycleView(); };
+    document.addEventListener('keydown', onV);
 
     const sub = (p) => {
       if (!p) return '';
@@ -473,11 +492,23 @@
     const hudApi = {
       setPrompt(i, r) {
         const p = plan.prompts[i];
-        symBox.replaceChildren(p ? UI.sym(p.sym, 'sym-xl') : h('span', { class: 'hud-done', text: '' }));
-        subBox.textContent = sub(p);
+        const view = WS.S().settings.crView || 'both';
+        const names = view !== 'staff';
+        const staff = view !== 'names';
+        symBox.replaceChildren(p && names ? UI.sym(p.sym, view === 'both' ? 'sym-lg' : 'sym-xl') : h('span', { class: 'hud-done', text: '' }));
+        staffBox.replaceChildren(p && staff ? WS.notation.staff(WS.notation.voicingFor(p), { size: view === 'staff' ? 15 : 12 }) : '');
+        subBox.textContent = names ? sub(p) : p && p.kind === 'shell' ? `Shape ${p.shape} · any octave works, keep it low` : p ? 'Any voicing counts' : '';
         UI.glyphify(subBox);
-        const nx = plan.prompts.slice(i + 1, i + 3).map((x) => x.sym);
-        nextBox.replaceChildren(...(nx.length ? ['Then ', ...nx.flatMap((s, k) => [k ? ' · ' : '', UI.sym(s, 'sym-sm')])] : []));
+        const nxp = plan.prompts.slice(i + 1, i + 3);
+        if (!nxp.length) nextBox.replaceChildren();
+        else if (names) nextBox.replaceChildren('Then ', ...nxp.flatMap((x, k) => [k ? ' · ' : '', UI.sym(x.sym, 'sym-sm')]));
+        else nextBox.replaceChildren('Then ', ...nxp.map((x) => h('span', { class: 'next-staff' }, WS.notation.staff(WS.notation.voicingFor(x), { size: 8 }))));
+      },
+      setScore(sc, m) {
+        scoreBox.firstChild.textContent = WS.fmtInt(sc);
+        scoreBox.lastChild.textContent = m > 1 ? `${m}×` : '';
+        scoreBox.classList.remove('bump'); void scoreBox.offsetWidth; scoreBox.classList.add('bump');
+        scoreBox.classList.toggle('beat-best', best > 0 && sc > best);
       },
       setCount(n) {
         if (n === null) { countBox.textContent = ''; countBox.classList.remove('show'); return; }
@@ -492,6 +523,7 @@
     };
 
     unsubGame = [
+      () => document.removeEventListener('keydown', onV),
       WS.bus.on('noteon', () => paintKeys(gameKeys)),
       WS.bus.on('noteoff', () => paintKeys(gameKeys)),
     ];
@@ -530,6 +562,7 @@
     WS.ui._runner = null;
     WS.input.qwertyWanted = ['keyboard', 'play', 'ear', 'metronome'].includes(UI.current);
     UI.rerender();
+    if (UI.showAsk) UI.showAsk();
   };
 
   const showSummary = (plan, res, out) => {
@@ -537,6 +570,9 @@
     const ls = L.state(plan.id);
     const hud = WS.$('#hud');
     const passed = out.passed;
+    const prevBest = ls.bestScore || 0;
+    const newBest = (res.score || 0) > prevBest;
+    if (newBest) { ls.bestScore = res.score; WS.store.save(); }
     const timing = res.meanOffsetMs == null ? '' : Math.abs(res.meanOffsetMs) < 25 ? 'Timing: right on the beat.' : res.meanOffsetMs < 0 ? `Timing: about ${Math.abs(res.meanOffsetMs)} ms early on average.` : `Timing: about ${res.meanOffsetMs} ms late on average.`;
     const earnedRows = out.earned.map((e) => h('li', { class: `earned earned-${e.kind}` }, UI.oneStar(e.kind, 22),
       ` ${e.kind === 'gold' ? 'Gold' : 'Silver'} star ${e.i + 1}: ${L.starCriteria(d)[e.i]}`));
@@ -560,6 +596,7 @@
     const panel = h('section', { class: 'summary', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'sum-title' },
       h('p', { class: 'sheet-kicker', text: d.name }),
       h('h2', { id: 'sum-title', class: `sum-title ${passed ? 'sum-pass' : ''}`, text: passed ? (out.flawless ? 'Flawless' : 'Passed') : 'Not yet' }),
+      h('p', { class: `sum-score${newBest ? ' new-best' : ''}` }, h('span', { class: 'ss-num', text: WS.fmtInt(res.score || 0) }), h('span', { class: 'ss-label', text: newBest ? (prevBest ? `New best! Old best ${WS.fmtInt(prevBest)}` : 'First score on this level') : `Best ${WS.fmtInt(prevBest)}` })),
       h('p', { class: 'sum-line' }, h('strong', { text: `${res.hits} of ${res.n}` }), ` chords landed (11 passes), ${res.perfects} perfect, at ♩ = ${plan.tempo}. ${timing}`),
       coldLine,
       earnedRows.length ? h('ul', { class: 'earned-list' }, earnedRows) : null,

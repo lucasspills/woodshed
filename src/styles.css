@@ -760,6 +760,46 @@ input.num { width: 5.2rem; padding: 6px 8px; display: inline-block; }
 .rec-tag { padding: 4px 8px; border-radius: 8px; border: 1px solid var(--ridge-soft); background: var(--sky); font-size: var(--step-0); }
 .play-top .rec-head { margin-left: auto; }
 
+/* ================= 0.5: staff notation, Chord Runner score, auto log ================= */
+.staff { display: block; height: auto; overflow: visible; }
+.staff .staff-line { stroke: currentColor; stroke-width: 1.1; opacity: .75; }
+.staff .notehead { fill: currentColor; }
+.staff .notehead-hole { fill: var(--sky); }
+.staff .accidental, .staff .clef { fill: currentColor; font-family: "Noto Music", "Bravura Text", "Segoe UI Symbol", "Apple Symbols", serif; }
+.hud-staff { display: flex; justify-content: center; color: var(--paper); filter: drop-shadow(0 4px 18px rgba(0,0,0,.45)); }
+.hud-staff:empty { display: none; }
+.hud-staff .staff { width: auto; height: clamp(110px, 17vh, 170px); background: rgba(20, 30, 25, 0.55); border-radius: 14px; padding: 6px 16px; box-sizing: content-box; }
+.hud-staff .notehead-hole { fill: #18241E; }
+[data-view="staff"] .hud-staff .staff { height: clamp(140px, 24vh, 230px); }
+.next-staff { display: inline-block; vertical-align: middle; color: var(--fog); }
+.next-staff .staff { height: 74px; width: auto; }
+#hud[data-view="staff"] .hud-count, #hud[data-view="both"] .hud-count { top: 57%; font-size: clamp(48px, 10vh, 100px); }
+.hud-next { align-items: center; }
+.next-staff .notehead-hole { fill: #18241E; }
+.hud-view { font-size: var(--step-0); padding: 6px 10px; }
+.hud-scorebar { position: absolute; right: 24px; top: 74px; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; pointer-events: none; }
+.hud-score { display: flex; align-items: baseline; gap: 8px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--paper); text-shadow: 0 3px 16px rgba(0,0,0,.5); }
+.hs-num { font-size: clamp(28px, 4.4vh, 44px); line-height: 1; }
+.hs-mult { font-family: var(--hand); font-size: clamp(22px, 3.4vh, 34px); color: var(--gold); }
+.hud-score.bump { animation: bump .22s ease-out; }
+.hud-score.beat-best .hs-num { color: var(--gold); }
+.hs-best { color: var(--fog); font-size: var(--step-0); font-weight: 700; }
+@keyframes bump { 40% { transform: scale(1.12); } }
+.sum-score { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin: 4px 0 8px; }
+.ss-num { font-size: 2.6rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+.ss-label { color: var(--fog); font-weight: 700; }
+.sum-score.new-best .ss-num, .sum-score.new-best .ss-label { color: var(--gold); }
+@media (prefers-reduced-motion: reduce) { .hud-score.bump { animation: none; } }
+
+/* Auto log */
+.ask-card { position: fixed; right: 20px; bottom: 20px; z-index: 60; width: min(380px, calc(100vw - 32px)); padding: 16px 18px; border-radius: 16px; background: var(--dusk-2); border: 1px solid var(--moon); box-shadow: 0 14px 40px rgba(0,0,0,.45); display: flex; flex-direction: column; gap: 10px; }
+.ask-card h2 { font-size: var(--step-1); margin: 0; padding-right: 28px; }
+.ask-card .sheet-close { top: 8px; right: 8px; }
+.ask-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.auto-tag { font-size: .72rem; font-weight: 700; color: var(--moon); text-transform: uppercase; letter-spacing: .05em; margin-left: 6px; }
+.live-session { font-size: 1.9rem !important; font-weight: 700; color: var(--paper) !important; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.live-list { margin: 6px 0 0; padding-left: 1.1rem; color: var(--fog); font-size: var(--step-0); }
+
 /* ---------- Narrow screens ---------- */
 @media (max-width: 860px) {
   .app { grid-template-columns: minmax(0, 1fr); }
@@ -783,6 +823,8 @@ input.num { width: 5.2rem; padding: 6px 8px; display: inline-block; }
   .step { grid-template-columns: 36px minmax(0, 1fr); }
   .step > .check { grid-column: 2; justify-self: start; }
   .session-pill { margin: 0 0 0 auto; flex: none; padding: 8px 10px; }
+  .hud-scorebar { top: 64px; right: 12px; }
+  .hud-view { display: none; }
   .session-pill + .kbd-pill { margin: 0 0 0 8px; }
   .phase-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .tw-grid { grid-template-columns: 1fr; }

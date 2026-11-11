@@ -396,20 +396,20 @@
   UI.paintSessionPill = () => {
     const pill = WS.$('#session-pill');
     if (!pill) return;
-    const on = !!LG.session;
+    const on = !!LG.session && LG.sessionMinutes() >= 1;
     pill.hidden = !on && !RC.recording;
     if (RC.recording) { pill.className = 'session-pill rec'; pill.querySelector('.sp-text').textContent = `Recording ${mmss(RC.elapsed())}`; return; }
-    pill.className = `session-pill${LG.session && LG.session.pausedAt ? ' paused' : ''}`;
-    pill.querySelector('.sp-text').textContent = on ? `${LG.session.pausedAt ? 'Paused' : 'Session'} ${mmss(LG.sessionSecs())}` : '';
+    pill.className = 'session-pill';
+    pill.querySelector('.sp-text').textContent = on ? `Practising · ${LG.fmtMin(LG.sessionMinutes())}` : '';
   };
   setInterval(() => UI.paintSessionPill(), 1000);
 
   /* The log form, used for finishing a timed session and for logging one after the fact */
   UI.logForm = (opts = {}) => {
-    const timed = !!LG.session && !opts.manual;
-    const start = timed ? Math.max(1, Math.round(LG.sessionSecs() / 60)) : (opts.entry ? opts.entry.minutes : 20);
+    const timed = false;
+    const start = opts.entry ? opts.entry.minutes : 20;
     const pre = opts.entry || {};
-    const areasPre = new Set(pre.areas || (timed ? LG.session.areas : []));
+    const areasPre = new Set(pre.areas || []);
     UI.sheet((panel, close) => {
       const mins = h('input', { type: 'number', id: 'log-min', min: '1', max: '600', value: String(start), class: 'num' });
       const day = h('input', { type: 'date', id: 'log-day', value: pre.day || WS.todayKey(), max: WS.todayKey() });
@@ -426,8 +426,7 @@
       const notes = h('textarea', { id: 'log-notes', rows: '3', placeholder: 'What clicked, what didn’t, what to do next time', text: pre.notes || '' });
       const save = () => {
         const form = { minutes: Number(mins.value) || 1, day: day.value || WS.todayKey(), areas: [...areasPre], piece: piece.value.trim(), bpm: bpm.value ? Number(bpm.value) : null, rating: rating || null, notes: notes.value.trim() };
-        if (pre.id) { LG.update(pre.id, form); WS.toast('Session updated.'); }
-        else if (timed) { LG.finishSession(form); WS.toast(`Logged ${LG.fmtMin(form.minutes)}.`); }
+        if (pre.id) { if (pre.areaMin) form.areaMin = Object.fromEntries(form.areas.map((a) => [a, (pre.areaMin[a] != null ? pre.areaMin[a] : form.minutes / Math.max(1, form.areas.length))])); LG.update(pre.id, form); WS.toast('Session updated.'); }
         else { LG.add(form); WS.toast(`Logged ${LG.fmtMin(form.minutes)}.`); }
         close(); UI.paintSessionPill(); UI.rerender();
       };
@@ -442,10 +441,10 @@
           h('label', { for: 'log-bpm', text: 'Tempo reached' }), bpm,
           h('span', { class: 'label', text: 'How it went' }), stars,
           h('label', { for: 'log-notes', text: 'Notes' }), notes),
-        h('p', { class: 'muted small', text: 'Ticking Sight-reading or Score piece here also ticks them on Tonight.' }),
+        pre.summary ? h('p', { class: 'muted small', text: `Woodshed saw: ${pre.summary}` }) : null,
+        h('p', { class: 'muted small', text: pre.auto ? 'Logged automatically. Fix anything that’s off; sight-reading or score piece also ticks Tonight.' : 'For practice away from Woodshed, like the acoustic piano. Ticking Sight-reading or Score piece also ticks them on Tonight.' }),
         h('div', { class: 'sheet-actions' },
           btn(pre.id ? 'Save changes' : 'Save to the log', save, 'btn btn-primary'),
-          timed ? btn('Discard the session', () => { LG.cancelSession(); close(); UI.paintSessionPill(); UI.rerender(); }, 'btn btn-ghost') : null,
           pre.id ? btn('Delete', () => { LG.remove(pre.id); close(); UI.rerender(); }, 'btn btn-ghost') : null));
     });
   };
@@ -454,25 +453,49 @@
   UI.sessionCard = () => {
     const card = h('section', { class: 'side-card session-card' });
     const paint = () => {
-      card.replaceChildren(h('h2', { text: 'Practice session' }));
-      if (LG.session) {
-        const t = h('p', { class: 'session-time', text: mmss(LG.sessionSecs()) });
-        const timer = setInterval(() => { if (!document.body.contains(t)) { clearInterval(timer); return; } t.textContent = mmss(LG.sessionSecs()); }, 1000);
-        card.append(t,
-          h('p', { class: 'muted small', text: `Playing time picked up by the keyboard: ${mmss(LG.session.played)}` }),
-          h('div', { class: 'row' },
-            btn('Finish and log', () => UI.logForm(), 'btn btn-primary'),
-            btn(LG.session.pausedAt ? 'Resume' : 'Pause', () => { LG.pauseSession(); paint(); UI.paintSessionPill(); }, 'btn btn-ghost')));
+      if (!document.body.contains(card) && card.isConnected === false && card.childNodes.length) return;
+      card.replaceChildren(h('h2', { text: 'Practice log' }));
+      const x = LG.session;
+      if (x && LG.sessionMinutes() >= 0.5) {
+        const sum = LG.describe(x.did);
+        const am = Object.entries(x.areaMs).filter(([, ms]) => ms >= 20000).sort((a, b) => b[1] - a[1]);
+        card.append(
+          h('p', { class: 'live-session', text: LG.fmtMin(LG.sessionMinutes()) }),
+          h('p', { class: 'muted small', text: 'This session so far. It closes by itself after 10 quiet minutes.' }),
+          am.length ? h('ul', { class: 'live-list' }, am.map(([a, ms]) => h('li', { text: `${LG.AREA[a] ? LG.AREA[a].name : a}: ${LG.fmtMin(ms / 60000)}` }))) : null,
+          sum ? h('p', { class: 'muted small', text: sum }) : null,
+          h('div', { class: 'row' }, btn('Done for now', () => { const e = LG.closeSession(); paint(); UI.paintSessionPill(); if (e && !e.ask) WS.toast(`Logged ${LG.fmtMin(e.minutes)}.`); if (!e) WS.toast('Under 2 minutes, so nothing was logged.'); if (UI.current === 'stats') UI.rerender(); }, 'btn btn-ghost')));
       } else {
-        card.append(h('p', { class: 'muted', text: 'Start the timer when you sit down; log what you did when you stop. Minutes you play are also tracked automatically.' }),
-          h('div', { class: 'row' },
-            btn(h('span', {}, icon('timer', 16), ' Start a session'), () => { LG.startSession(); paint(); UI.paintSessionPill(); }, 'btn btn-primary'),
-            btn('Log one', () => UI.logForm({ manual: true }), 'btn btn-ghost')));
+        card.append(h('p', { class: 'muted', text: 'Woodshed logs your practice by itself: play, and it records how long, what you did and how it went. If it can’t tell what the free play was, it asks once at the end.' }));
       }
+      card.append(h('div', { class: 'row' }, btn('Log practice away from the app', () => UI.logForm({ manual: true }), 'linkish')));
     };
     paint();
+    const t = setInterval(() => { if (!card.isConnected) { clearInterval(t); return; } paint(); }, 15000);
+    const un = WS.bus.on('session', () => { if (!card.isConnected) { un(); return; } paint(); });
     return card;
   };
+
+  /* The one-tap question after a session with unlabeled free play */
+  UI.showAsk = () => {
+    const e = LG.pendingAsk();
+    const old = WS.$('.ask-card');
+    if (old) old.remove();
+    if (!e || document.body.classList.contains('in-game')) return;
+    const free = Math.round((e.areaMin && e.areaMin.free) || 0);
+    const card = h('section', { class: 'ask-card', role: 'dialog', 'aria-labelledby': 'ask-title' },
+      h('button', { type: 'button', class: 'sheet-close', 'aria-label': 'Not now', onclick: () => { LG.dismissAsk(e.id); card.remove(); }, text: '×' }),
+      h('h2', { id: 'ask-title', text: `${LG.fmtMin(e.minutes)} logged ${e.day === WS.todayKey() ? 'just now' : WS.fmtDay(e.day)}. What were the ${free} minutes of free play?` }),
+      h('div', { class: 'ask-chips' }, LG.ASK_CHOICES.map(([v, label]) => btn(label, () => {
+        LG.answerAsk(e.id, v);
+        card.remove();
+        WS.toast(v === 'free' ? 'Logged as free play.' : `Logged as ${label.toLowerCase()}.${v === 'reading' || v === 'score' || v === 'both' ? ' Ticked on Tonight.' : ''}`);
+        if (['tonight', 'stats'].includes(UI.current)) UI.rerender();
+      }, 'chip'))));
+    document.body.append(card);
+    UI.glyphify(card);
+  };
+  WS.bus.on('log-ask', () => setTimeout(UI.showAsk, 50));
 
   /* =========================================================================================
      STATS
@@ -540,7 +563,9 @@
         h('span', { class: 'log-day', text: WS.fmtDay(e.day) }),
         h('span', { class: 'log-min', text: LG.fmtMin(e.minutes) }),
         h('span', { class: 'log-what' },
-          h('span', { text: e.areas.map((a) => (LG.AREA[a] ? LG.AREA[a].name : a)).join(', ') || 'Practice' }),
+          h('span', { text: e.areaMin && Object.keys(e.areaMin).length ? Object.entries(e.areaMin).sort((a, b) => b[1] - a[1]).map(([a, m]) => `${LG.AREA[a] ? LG.AREA[a].name : a} ${Math.round(m)}m`).join(', ') : e.areas.map((a) => (LG.AREA[a] ? LG.AREA[a].name : a)).join(', ') || 'Practice' }),
+          e.auto ? h('span', { class: 'auto-tag', text: e.ask ? 'needs a label' : 'auto' }) : null,
+          e.summary ? h('span', { class: 'log-notes muted small', text: e.summary }) : null,
           e.piece ? h('span', { class: 'muted', text: ` · ${e.piece}` }) : null,
           e.bpm ? h('span', { class: 'muted', text: ` · ♩ = ${e.bpm}` }) : null,
           e.notes ? h('span', { class: 'log-notes muted small', text: e.notes }) : null),
@@ -550,8 +575,8 @@
     };
     renderLog(showN);
     root.append(h('section', { class: 'panel' },
-      h('div', { class: 'panel-h' }, h('h2', { text: 'Practice log' }), btn('Log a session', () => UI.logForm({ manual: true }), 'btn btn-ghost btn-sm')),
-      log.length ? logBody : h('p', { class: 'muted', text: 'Nothing logged yet. Start a session timer, or log one after you play.' })));
+      h('div', { class: 'panel-h' }, h('h2', { text: 'Practice log' }), btn('Add practice away from the app', () => UI.logForm({ manual: true }), 'btn btn-ghost btn-sm')),
+      log.length ? logBody : h('p', { class: 'muted', text: 'Nothing logged yet. Play and it fills in by itself.' })));
 
     // Tempo progress per Chord Runner level
     const tempoRows = WS.levels.LEVELS.map((d) => [d, LG.tempoHistory(d.id)]).filter(([, hst]) => hst.length);

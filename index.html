@@ -775,6 +775,46 @@ input.num { width: 5.2rem; padding: 6px 8px; display: inline-block; }
 .rec-tag { padding: 4px 8px; border-radius: 8px; border: 1px solid var(--ridge-soft); background: var(--sky); font-size: var(--step-0); }
 .play-top .rec-head { margin-left: auto; }
 
+/* ================= 0.5: staff notation, Chord Runner score, auto log ================= */
+.staff { display: block; height: auto; overflow: visible; }
+.staff .staff-line { stroke: currentColor; stroke-width: 1.1; opacity: .75; }
+.staff .notehead { fill: currentColor; }
+.staff .notehead-hole { fill: var(--sky); }
+.staff .accidental, .staff .clef { fill: currentColor; font-family: "Noto Music", "Bravura Text", "Segoe UI Symbol", "Apple Symbols", serif; }
+.hud-staff { display: flex; justify-content: center; color: var(--paper); filter: drop-shadow(0 4px 18px rgba(0,0,0,.45)); }
+.hud-staff:empty { display: none; }
+.hud-staff .staff { width: auto; height: clamp(110px, 17vh, 170px); background: rgba(20, 30, 25, 0.55); border-radius: 14px; padding: 6px 16px; box-sizing: content-box; }
+.hud-staff .notehead-hole { fill: #18241E; }
+[data-view="staff"] .hud-staff .staff { height: clamp(140px, 24vh, 230px); }
+.next-staff { display: inline-block; vertical-align: middle; color: var(--fog); }
+.next-staff .staff { height: 74px; width: auto; }
+#hud[data-view="staff"] .hud-count, #hud[data-view="both"] .hud-count { top: 57%; font-size: clamp(48px, 10vh, 100px); }
+.hud-next { align-items: center; }
+.next-staff .notehead-hole { fill: #18241E; }
+.hud-view { font-size: var(--step-0); padding: 6px 10px; }
+.hud-scorebar { position: absolute; right: 24px; top: 74px; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; pointer-events: none; }
+.hud-score { display: flex; align-items: baseline; gap: 8px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--paper); text-shadow: 0 3px 16px rgba(0,0,0,.5); }
+.hs-num { font-size: clamp(28px, 4.4vh, 44px); line-height: 1; }
+.hs-mult { font-family: var(--hand); font-size: clamp(22px, 3.4vh, 34px); color: var(--gold); }
+.hud-score.bump { animation: bump .22s ease-out; }
+.hud-score.beat-best .hs-num { color: var(--gold); }
+.hs-best { color: var(--fog); font-size: var(--step-0); font-weight: 700; }
+@keyframes bump { 40% { transform: scale(1.12); } }
+.sum-score { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin: 4px 0 8px; }
+.ss-num { font-size: 2.6rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+.ss-label { color: var(--fog); font-weight: 700; }
+.sum-score.new-best .ss-num, .sum-score.new-best .ss-label { color: var(--gold); }
+@media (prefers-reduced-motion: reduce) { .hud-score.bump { animation: none; } }
+
+/* Auto log */
+.ask-card { position: fixed; right: 20px; bottom: 20px; z-index: 60; width: min(380px, calc(100vw - 32px)); padding: 16px 18px; border-radius: 16px; background: var(--dusk-2); border: 1px solid var(--moon); box-shadow: 0 14px 40px rgba(0,0,0,.45); display: flex; flex-direction: column; gap: 10px; }
+.ask-card h2 { font-size: var(--step-1); margin: 0; padding-right: 28px; }
+.ask-card .sheet-close { top: 8px; right: 8px; }
+.ask-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.auto-tag { font-size: .72rem; font-weight: 700; color: var(--moon); text-transform: uppercase; letter-spacing: .05em; margin-left: 6px; }
+.live-session { font-size: 1.9rem !important; font-weight: 700; color: var(--paper) !important; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.live-list { margin: 6px 0 0; padding-left: 1.1rem; color: var(--fog); font-size: var(--step-0); }
+
 /* ---------- Narrow screens ---------- */
 @media (max-width: 860px) {
   .app { grid-template-columns: minmax(0, 1fr); }
@@ -798,6 +838,8 @@ input.num { width: 5.2rem; padding: 6px 8px; display: inline-block; }
   .step { grid-template-columns: 36px minmax(0, 1fr); }
   .step > .check { grid-column: 2; justify-self: start; }
   .session-pill { margin: 0 0 0 auto; flex: none; padding: 8px 10px; }
+  .hud-scorebar { top: 64px; right: 12px; }
+  .hud-view { display: none; }
   .session-pill + .kbd-pill { margin: 0 0 0 8px; }
   .phase-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .tw-grid { grid-template-columns: 1fr; }
@@ -905,7 +947,7 @@ WS.SOUND_VERSION = {"bass": "30a5ad2d", "honkytonk": "931d1283", "kawai": "4ac2f
 'use strict';
 /* Woodshed core: namespace, DOM helpers, event bus, dates, small utils. */
 const WS = (window.WS = window.WS || {});
-WS.VERSION = '0.4.0';
+WS.VERSION = '0.5.0';
 WS.DEBUG = /[?&]debug\b/.test(location.search);
 
 WS.$ = (sel, root = document) => root.querySelector(sel);
@@ -1150,6 +1192,96 @@ WS.rng = (seed) => () => {
       return { label: `${T.FLAT[notes[0] % 12]} and ${T.FLAT[notes[1] % 12]}`, detail: name };
     }
     return { label: pcs.map((p) => T.FLAT[p]).join(' '), detail: 'not a chord in the drills yet' };
+  };
+})();
+
+/* ---- 12-notation.js ---- */
+/* Notation: draw chords on a staff as SVG. Notes are spelled ({ name: 'E♭', pos }) where pos is the
+   diatonic position (letter index + 7 * octave), so C4 = 28, E4 = 30, G2 = 18. */
+(function () {
+  const T = WS.theory;
+  const N = (WS.notation = {});
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (tag, attrs = {}, text) => {
+    const e = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    if (text != null) e.textContent = text;
+    return e;
+  };
+
+  const CLEF = {
+    treble: { bottom: 30, glyph: '𝄞' },  // bottom line E4
+    bass: { bottom: 18, glyph: '𝄢' },    // bottom line G2
+  };
+
+  /* Root-position chord in the treble staff: root from C4 to B4, every tone a letter-third up. */
+  N.chordVoicing = (p) => {
+    const r = T.parseName(p.rootName || T.FLAT[p.root]);
+    const rootPos = r.L + 28;
+    const steps = T.Q[p.q].steps;
+    return { clef: 'treble', notes: p.tones.map((name, k) => ({ name, pos: rootPos + steps[k] })) };
+  };
+  /* Shell in the bass staff: root from E2 to D3, the 3rd or 7th above it. */
+  N.shellVoicing = (p) => {
+    const r = T.parseName(p.rootName);
+    const rootPos = r.L + (r.L < 2 ? 21 : 14);
+    return { clef: 'bass', notes: [{ name: p.rootName, pos: rootPos }, { name: p.guideName, pos: rootPos + (p.use7 ? 6 : 2) }] };
+  };
+  N.voicingFor = (p) => (p.kind === 'shell' ? N.shellVoicing(p) : N.chordVoicing(p));
+
+  /* A one-chord staff. opts: { size: px per staff space (default 10), width } */
+  N.staff = (voicing, opts = {}) => {
+    const s = opts.size || 10;
+    const clef = CLEF[voicing.clef];
+    const notes = [...voicing.notes].sort((a, b) => a.pos - b.pos);
+    const top = Math.max(clef.bottom + 8, ...notes.map((n) => n.pos)) + 2;
+    const bot = Math.min(clef.bottom, ...notes.map((n) => n.pos)) - 2;
+    const yOf = (pos) => (top - pos) * (s / 2) + s;
+    const H = (top - bot) * (s / 2) + 2 * s;
+    // Accidentals: greedy columns, leftward, so ones a 6th or less apart don't collide
+    const accs = notes.filter((n) => n.name.length > 1);
+    const cols = [];
+    accs.slice().reverse().forEach((n) => {
+      let c = 0;
+      while (cols[c] && cols[c].some((m) => Math.abs(m.pos - n.pos) < 6)) c++;
+      (cols[c] = cols[c] || []).push(n);
+      n.col = c;
+    });
+    const accW = s * 1.15;
+    const clefW = s * 3.2;
+    const headX = clefW + s * 1.2 + cols.length * accW + s * 0.6;
+    // Seconds: the upper note of an adjacent pair sits to the right
+    notes.forEach((n, i) => { n.shift = i > 0 && n.pos - notes[i - 1].pos === 1 && !notes[i - 1].shift ? 1 : 0; });
+    const W = opts.width || headX + s * 4.2;
+    const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, class: 'staff', role: 'img', 'aria-label': `${voicing.clef} clef: ${notes.map((n) => `${n.name}${Math.floor(n.pos / 7)}`).join(', ')}` });
+    for (let k = 0; k < 5; k++) {
+      const y = yOf(clef.bottom + k * 2);
+      svg.append(el('line', { x1: 0, x2: W, y1: y, y2: y, class: 'staff-line' }));
+    }
+    // Clef glyph, sized to the staff
+    const clefY = voicing.clef === 'treble' ? yOf(clef.bottom) + s * 0.95 : yOf(clef.bottom + 6) + s * 1.55;
+    svg.append(el('text', { x: s * 0.2, y: clefY, class: `clef clef-${voicing.clef}`, 'font-size': voicing.clef === 'treble' ? s * 6.2 : s * 3.6 }, clef.glyph));
+    // Ledger lines
+    const ledgers = new Set();
+    for (const n of notes) {
+      if (n.pos < clef.bottom) for (let p = clef.bottom - 2; p >= n.pos; p -= 2) ledgers.add(p);
+      if (n.pos > clef.bottom + 8) for (let p = clef.bottom + 10; p <= n.pos; p += 2) ledgers.add(p);
+    }
+    const anyShift = notes.some((n) => n.shift);
+    for (const p of ledgers) svg.append(el('line', { x1: headX - s * 0.25, x2: headX + s * 1.75 + (anyShift ? s * 1.45 : 0), y1: yOf(p), y2: yOf(p), class: 'staff-line ledger' }));
+    // Noteheads (whole notes) and accidentals
+    for (const n of notes) {
+      const x = headX + s * 0.75 + n.shift * s * 1.45;
+      const y = yOf(n.pos);
+      svg.append(el('ellipse', { cx: x, cy: y, rx: s * 0.72, ry: s * 0.5, class: 'notehead', transform: `rotate(-18 ${x} ${y})` }));
+      svg.append(el('ellipse', { cx: x, cy: y, rx: s * 0.36, ry: s * 0.2, class: 'notehead-hole', transform: `rotate(-55 ${x} ${y})` }));
+      if (n.name.length > 1) {
+        const acc = n.name.slice(1);
+        const ax = headX - s * 0.35 - n.col * accW;
+        svg.append(el('text', { x: ax, y: y + (acc === '♭' ? s * 0.42 : s * 0.55), class: 'accidental', 'font-size': s * 2.1, 'text-anchor': 'end' }, acc));
+      }
+    }
+    return svg;
   };
 })();
 
@@ -3299,7 +3431,7 @@ WS.rng = (seed) => () => {
     });
     if (s.rounds.length > 600) s.rounds.splice(0, s.rounds.length - 600);
     WS.store.save();
-    WS.bus.emit('round', { id: plan.id, passed, earned: out.earned });
+    WS.bus.emit('round', { id: plan.id, passed, earned: out.earned, tempo: plan.tempo, hits: res.hits, n: res.n, score: res.score || 0 });
     return out;
   };
 
@@ -3519,36 +3651,133 @@ WS.rng = (seed) => () => {
       a.areas[area] = (a.areas[area] || 0) + dt;
       const hr = new Date(WS.nowMs()).getHours();
       a.hours[hr] = (a.hours[hr] || 0) + dt;
-      if (LG.session) LG.session.played += dt;
     }
     last = now;
+    LG.onNote();
     WS.store.save();
   };
   WS.bus.on('noteon', (e) => { if (e && e.src === 'playback') return; LG.track(); });
 
-  /* ---------- The session timer ---------- */
-  LG.session = null; // { start (ms), areas, played (sec of notes while running) }
-  LG.startSession = (areas = []) => {
-    LG.session = { start: WS.nowMs(), areas, played: 0, paused: 0, pausedAt: null };
+  /* ---------- Automatic sessions ----------
+     The first note opens a session; 10 minutes without a note closes it. Gaps over 3 minutes inside a
+     session don't count as practice. What you did in the app (rounds, ear games, metronome, recordings)
+     is collected as you go. When a session closes with free play the app can't label, it asks once. */
+  LG.GAP_END = 10 * 60 * 1000;
+  LG.BREAK = 3 * 60 * 1000;
+  LG.MIN_KEEP = 2;
+  LG.session = null; // { start, last, active (ms), areaMs, did: [] }
+
+  const openSession = (now) => {
+    LG.session = { start: now, last: now, active: 0, areaMs: {}, did: [] };
     WS.S().openSession = LG.session;
-    WS.store.save();
     WS.bus.emit('session', { on: true });
+    return LG.session;
   };
-  LG.pauseSession = () => {
+  LG.onNote = () => {
+    const now = WS.nowMs();
+    let x = LG.session;
+    if (x && now - x.last > LG.GAP_END) { LG.closeSession(); x = null; }
+    if (!x) x = openSession(now);
+    else {
+      const gap = now - x.last;
+      if (gap > 0 && gap < LG.BREAK) {
+        x.active += gap;
+        const ar = LG.areaNow();
+        x.areaMs[ar] = (x.areaMs[ar] || 0) + gap;
+      }
+    }
+    x.last = now;
+  };
+  LG.sessionMinutes = () => (LG.session ? LG.session.active / 60000 : 0);
+  LG.note = (item) => { if (LG.session) { LG.session.did.push(item); WS.store.save(); } };
+
+  /* One line describing what happened in a session */
+  LG.describe = (did) => {
+    const parts = [];
+    const cr = did.filter((d) => d.t === 'cr');
+    const byLevel = {};
+    cr.forEach((d) => { const b = (byLevel[d.id] = byLevel[d.id] || { n: 0, tempo: 0, best: 0, total: d.n }); b.n++; b.tempo = Math.max(b.tempo, d.tempo); b.best = Math.max(b.best, d.hits); });
+    for (const [id, b] of Object.entries(byLevel)) {
+      const def = WS.levels.def(id);
+      parts.push(`${def ? def.name : id}: ${b.n} round${b.n > 1 ? 's' : ''}, best ${b.best}/${b.total} at ♩ ${b.tempo}`);
+    }
+    const ear = did.filter((d) => d.t === 'ear');
+    const byGame = {};
+    ear.forEach((d) => { const k = `${d.gid}:${d.li}`; const b = (byGame[k] = byGame[k] || { n: 0, best: 0, d }); b.n++; b.best = Math.max(b.best, d.score); });
+    for (const b of Object.values(byGame)) {
+      const g = WS.ear && WS.ear.def(b.d.gid);
+      parts.push(`${g ? `${g.name}, ${g.levels[b.d.li].name}` : b.d.gid}: best ${b.best}/10`);
+    }
+    const mt = did.filter((d) => d.t === 'metro');
+    if (mt.length) {
+      const secs = mt.reduce((a, d) => a + d.secs, 0);
+      const bpms = [...new Set(mt.map((d) => d.bpm))];
+      parts.push(`Metronome ${LG.fmtMin(secs / 60)} at ♩ ${bpms.slice(0, 3).join(', ')} (${mt[mt.length - 1].pattern})`);
+    }
+    const rc = did.filter((d) => d.t === 'rec');
+    if (rc.length) parts.push(`${rc.length} recording${rc.length > 1 ? 's' : ''}`);
+    return parts.join(' · ');
+  };
+
+  LG.closeSession = () => {
     const x = LG.session;
-    if (!x) return;
-    if (x.pausedAt) { x.paused += WS.nowMs() - x.pausedAt; x.pausedAt = null; } else x.pausedAt = WS.nowMs();
+    LG.session = null;
+    delete WS.S().openSession;
+    if (!x) return null;
+    const minutes = x.active / 60000;
+    WS.bus.emit('session', { on: false });
+    if (minutes < LG.MIN_KEEP) { WS.store.save(); return null; }
+    const areaMin = {};
+    for (const [a, ms] of Object.entries(x.areaMs)) if (ms >= 20000) areaMin[a] = Math.round((ms / 60000) * 10) / 10;
+    const day = WS.dateKey(new Date(x.start));
+    const e = LG.add({
+      day, at: new Date(x.start).toISOString(), minutes: Math.round(minutes),
+      areas: Object.keys(areaMin), areaMin, auto: true, summary: LG.describe(x.did),
+      ask: (areaMin.free || 0) >= LG.MIN_KEEP,
+    });
+    if (e.ask) WS.bus.emit('log-ask', e);
+    return e;
+  };
+
+  /* The one-tap answer: what was the free play? */
+  LG.ASK_CHOICES = [
+    ['reading', 'Sight-reading'], ['score', 'Score piece'], ['both', 'Both of those'],
+    ['improv', 'Improv'], ['ear', 'Songs by ear'], ['repertoire', 'Old songs'], ['free', 'Just playing'],
+  ];
+  LG.pendingAsk = () => (st().log || []).filter((e) => e.ask).slice(-1)[0] || null;
+  LG.answerAsk = (id, choice) => {
+    const e = st().log.find((x) => x.id === id);
+    if (!e) return;
+    e.ask = false;
+    const free = (e.areaMin && e.areaMin.free) || 0;
+    if (choice !== 'free' && free) {
+      delete e.areaMin.free;
+      const to = choice === 'both' ? ['reading', 'score'] : [choice];
+      to.forEach((a) => { e.areaMin[a] = Math.round(((e.areaMin[a] || 0) + free / to.length) * 10) / 10; });
+      e.areas = Object.keys(e.areaMin);
+      if (to.includes('reading')) WS.progress.setTask(e.day, 'sight', true);
+      if (to.includes('score')) WS.progress.setTask(e.day, 'score', true);
+    }
+    e.answered = choice;
     WS.store.save();
-    WS.bus.emit('session', { on: true });
+    WS.bus.emit('log', e);
   };
-  LG.sessionSecs = () => {
-    const x = LG.session;
-    if (!x) return 0;
-    const end = x.pausedAt || WS.nowMs();
-    return Math.max(0, (end - x.start - x.paused) / 1000);
+  LG.dismissAsk = (id) => { const e = st().log.find((x) => x.id === id); if (e) { e.ask = false; WS.store.save(); } };
+
+  LG.restoreSession = () => {
+    const o = WS.S().openSession;
+    if (!o) return;
+    LG.session = o;
+    if (!o.did) o.did = [];
+    if (WS.nowMs() - o.last > LG.GAP_END) LG.closeSession();
   };
-  LG.cancelSession = () => { LG.session = null; delete WS.S().openSession; WS.store.save(); WS.bus.emit('session', { on: false }); };
-  LG.restoreSession = () => { const o = WS.S().openSession; if (o) LG.session = o; };
+  setInterval(() => { if (LG.session && WS.nowMs() - LG.session.last > LG.GAP_END) LG.closeSession(); }, 15000);
+
+  // What you did, collected into the open session
+  WS.bus.on('round', (d) => LG.note({ t: 'cr', id: d.id, tempo: d.tempo, hits: d.hits, n: d.n }));
+  WS.bus.on('ear', (d) => LG.note({ t: 'ear', gid: d.gid, li: d.li, score: d.score }));
+  WS.bus.on('metro', (d) => { if (d.running === false && d.secs > 20 && d.cfg) LG.note({ t: 'metro', secs: d.secs, bpm: d.bpm, pattern: WS.metro.patternLabel(d.cfg.seq) }); });
+  WS.bus.on('record', () => LG.note({ t: 'rec' }));
 
   /* Save a log entry. Logging sight-reading or the score piece also ticks them on Tonight. */
   LG.add = (e) => {
@@ -3563,7 +3792,10 @@ WS.rng = (seed) => () => {
       bpm: e.bpm ? Number(e.bpm) : null,
       rating: e.rating || null,
       notes: e.notes || '',
-      timed: !!e.timed,
+      auto: !!e.auto,
+      areaMin: e.areaMin || null,
+      summary: e.summary || '',
+      ask: !!e.ask,
     };
     s.log.push(entry);
     s.log.sort((a, b) => (a.at < b.at ? -1 : 1));
@@ -3583,16 +3815,6 @@ WS.rng = (seed) => () => {
     s.log = s.log.filter((x) => x.id !== id);
     WS.store.save();
   };
-  LG.finishSession = (form) => {
-    const x = LG.session;
-    const minutes = form.minutes != null ? form.minutes : Math.round(LG.sessionSecs() / 60);
-    LG.session = null;
-    delete WS.S().openSession;
-    const e = LG.add({ ...form, minutes, timed: true, at: x ? new Date(x.start).toISOString() : undefined });
-    WS.bus.emit('session', { on: false });
-    return e;
-  };
-
   /* ---------- Numbers ----------
      Minutes per day blend the two sources: logged sessions, and played time the keyboard saw.
      A day counts whichever is larger, so a logged session and the notes inside it aren't counted twice. */
@@ -3608,6 +3830,7 @@ WS.rng = (seed) => () => {
     const out = {};
     for (const e of s.log) {
       if (e.day < fromKey || e.day > toKey) continue;
+      if (e.areaMin && Object.keys(e.areaMin).length) { for (const [a, m] of Object.entries(e.areaMin)) out[a] = (out[a] || 0) + m; continue; }
       const per = e.minutes / Math.max(1, e.areas.length || 1);
       (e.areas.length ? e.areas : ['free']).forEach((a) => { out[a] = (out[a] || 0) + per; });
     }
@@ -4138,6 +4361,10 @@ WS.rng = (seed) => () => {
       this.pops = [];
       this.stumbleAt = -1;
       this.combo = 0;
+      this.score = 0;
+      this.mult = 1;
+      this.flashAt = -1;
+      this.hideNames = (WS.S().settings.crView || 'both') === 'staff';
       this.running = false;
       this.reduced = WS.reducedMotion();
       this.buildScenery();
@@ -4245,6 +4472,14 @@ WS.rng = (seed) => () => {
       if (start < now) { start = now; len = Math.max(0.3, (d + dur / 2) - now); }
       this.jumps.push({ start, dur: len, i });
       this.combo++;
+      // Score: 100 a chord, 150 if perfect, times a multiplier that grows every 4 in a row (max 4x)
+      const m = Math.min(4, 1 + Math.floor(this.combo / 4));
+      if (m > this.mult) { this.pop(`${m}× multiplier`, COLORS.gold || '#E9C46A', i, true); A.sfx('silver'); }
+      this.mult = m;
+      this.score += (perfect ? 150 : 100) * m;
+      if (perfect) this.flashAt = performance.now();
+      if (this.hud.setScore) this.hud.setScore(this.score, this.mult);
+      this.sparkle(this.charX + this.cs * 0.5, this.groundY - this.cs * 1.4, perfect ? COLORS.paper : COLORS.hit);
       this.pop(perfect ? 'Perfect' : off < 0 ? 'Good · early' : 'Good · late', perfect ? COLORS.paper : COLORS.hit, i);
       A.sfx(perfect ? 'perfect' : 'good');
       this.hud.setPrompt(this.currentIndex(), this);
@@ -4262,6 +4497,8 @@ WS.rng = (seed) => () => {
         this.results[i] = { hit: false, reason };
         this.broken[i] = true;
         this.combo = 0;
+        this.mult = 1;
+        if (this.hud.setScore) this.hud.setScore(this.score, 1);
         this.stumbleAt = A.heardNow();
         this.burst(i);
         this.pop(reason, COLORS.miss, i, true);
@@ -4347,7 +4584,7 @@ WS.rng = (seed) => () => {
       const meanOffsetMs = offs.length ? Math.round(offs.reduce((a, b) => a + b, 0) / offs.length) : null;
       const misses = this.results.map((r, i) => (r && !r.hit ? { sym: this.prompts[i].sym, hint: this.prompts[i].hint || '', reason: r.reason } : null)).filter(Boolean);
       const durationSec = (performance.now() - this.startPerf) / 1000;
-      this.onDone({ n, hits, perfects, results: this.results, misses, meanOffsetMs, durationSec });
+      this.onDone({ n, hits, perfects, results: this.results, misses, meanOffsetMs, durationSec, score: this.score });
     }
 
     /* ---------------- Drawing ---------------- */
@@ -4488,6 +4725,11 @@ WS.rng = (seed) => () => {
       }
       g.globalAlpha = 1;
       g.textAlign = 'left';
+      // Perfect flash
+      if (this.flashAt > 0 && !this.reduced) {
+        const fa = (pn - this.flashAt) / 180;
+        if (fa < 1) { g.globalAlpha = 0.14 * (1 - fa); g.fillStyle = '#F4F1E6'; g.fillRect(0, 0, W, H); g.globalAlpha = 1; }
+      }
     }
 
     hills(off, baseY, amp, color, freq, phase) {
@@ -4564,6 +4806,14 @@ WS.rng = (seed) => () => {
       g.strokeStyle = 'rgba(30,44,37,0.25)';
       g.lineWidth = 1;
       g.stroke();
+      if (this.hideNames && !(res && res.hit)) {
+        g.fillStyle = COLORS.ink;
+        g.textAlign = 'center';
+        g.font = `700 ${Math.round(lh * 0.7)}px Kalam, "Marker Felt", cursive`;
+        g.fillText('♪', x, ly + lh * 0.74);
+        g.textAlign = 'left';
+        return;
+      }
       let size = lh * 0.78;
       const w = WS.measureSym(g, prompt.sym, size);
       if (w > lw * 0.86) size *= (lw * 0.86) / w;
@@ -5334,6 +5584,21 @@ WS.rng = (seed) => () => {
     const nextBox = h('p', { class: 'hud-next' });
     const countBox = h('div', { class: 'hud-count', 'aria-hidden': 'true' });
     const comboBox = h('p', { class: 'hud-combo' });
+    const staffBox = h('div', { class: 'hud-staff' });
+    const scoreBox = h('div', { class: 'hud-score' }, h('span', { class: 'hs-num', text: '0' }), h('span', { class: 'hs-mult', text: '' }));
+    const best = L.state(id).bestScore || 0;
+    const VIEW_LABEL = { both: 'Name + staff', staff: 'Staff only', names: 'Name only' };
+    const viewBtn = h('button', { type: 'button', class: 'btn btn-ghost hud-view', title: 'Change what each chord shows (V)' });
+    const paintView = () => { viewBtn.textContent = `Show: ${VIEW_LABEL[WS.S().settings.crView || 'both']} (V)`; hud.dataset.view = WS.S().settings.crView || 'both'; };
+    const cycleView = () => {
+      const order = ['both', 'staff', 'names'];
+      const cur = WS.S().settings.crView || 'both';
+      WS.S().settings.crView = order[(order.indexOf(cur) + 1) % 3];
+      WS.store.save();
+      paintView();
+      if (runner) { runner.hideNames = WS.S().settings.crView === 'staff'; hudApi.setPrompt(runner.currentIndex(), runner); }
+    };
+    viewBtn.onclick = cycleView;
     gameKeys = miniKeyboard();
     const holding = h('p', { class: 'hud-hint', text: WS.input.qwertyActive() ? 'Computer keys: bottom row from Z is C3, top row from Q is C4. Press − or = to shift octaves.' : '' });
 
@@ -5344,11 +5609,15 @@ WS.rng = (seed) => () => {
           h('span', { class: 'hud-level-name', text: d.name }),
           plan.cold ? h('span', { class: 'badge badge-gold' }, UI.oneStar('gold', 13), ' Cold check') : null,
           plan.challenge ? h('span', { class: 'badge', text: '★2 attempt' }) : null),
-        h('div', { class: 'hud-meta' }, h('span', { class: 'hud-tempo', text: `♩ = ${plan.tempo}` }), dots)),
-      h('div', { class: 'hud-prompt' }, symBox, subBox, nextBox, comboBox),
+        h('div', { class: 'hud-meta' }, viewBtn, h('span', { class: 'hud-tempo', text: `♩ = ${plan.tempo}` }), dots)),
+      h('div', { class: 'hud-scorebar' }, scoreBox, h('span', { class: 'hs-best', text: best ? `Best ${WS.fmtInt(best)}` : 'No best score yet' })),
+      h('div', { class: 'hud-prompt' }, staffBox, symBox, subBox, nextBox, comboBox),
       countBox,
       h('div', { class: 'hud-bottom' }, gameKeys, holding));
     UI.glyphify(hud);
+    paintView();
+    const onV = (e) => { if ((e.key === 'v' || e.key === 'V') && runner && runner.running) cycleView(); };
+    document.addEventListener('keydown', onV);
 
     const sub = (p) => {
       if (!p) return '';
@@ -5358,11 +5627,23 @@ WS.rng = (seed) => () => {
     const hudApi = {
       setPrompt(i, r) {
         const p = plan.prompts[i];
-        symBox.replaceChildren(p ? UI.sym(p.sym, 'sym-xl') : h('span', { class: 'hud-done', text: '' }));
-        subBox.textContent = sub(p);
+        const view = WS.S().settings.crView || 'both';
+        const names = view !== 'staff';
+        const staff = view !== 'names';
+        symBox.replaceChildren(p && names ? UI.sym(p.sym, view === 'both' ? 'sym-lg' : 'sym-xl') : h('span', { class: 'hud-done', text: '' }));
+        staffBox.replaceChildren(p && staff ? WS.notation.staff(WS.notation.voicingFor(p), { size: view === 'staff' ? 15 : 12 }) : '');
+        subBox.textContent = names ? sub(p) : p && p.kind === 'shell' ? `Shape ${p.shape} · any octave works, keep it low` : p ? 'Any voicing counts' : '';
         UI.glyphify(subBox);
-        const nx = plan.prompts.slice(i + 1, i + 3).map((x) => x.sym);
-        nextBox.replaceChildren(...(nx.length ? ['Then ', ...nx.flatMap((s, k) => [k ? ' · ' : '', UI.sym(s, 'sym-sm')])] : []));
+        const nxp = plan.prompts.slice(i + 1, i + 3);
+        if (!nxp.length) nextBox.replaceChildren();
+        else if (names) nextBox.replaceChildren('Then ', ...nxp.flatMap((x, k) => [k ? ' · ' : '', UI.sym(x.sym, 'sym-sm')]));
+        else nextBox.replaceChildren('Then ', ...nxp.map((x) => h('span', { class: 'next-staff' }, WS.notation.staff(WS.notation.voicingFor(x), { size: 8 }))));
+      },
+      setScore(sc, m) {
+        scoreBox.firstChild.textContent = WS.fmtInt(sc);
+        scoreBox.lastChild.textContent = m > 1 ? `${m}×` : '';
+        scoreBox.classList.remove('bump'); void scoreBox.offsetWidth; scoreBox.classList.add('bump');
+        scoreBox.classList.toggle('beat-best', best > 0 && sc > best);
       },
       setCount(n) {
         if (n === null) { countBox.textContent = ''; countBox.classList.remove('show'); return; }
@@ -5377,6 +5658,7 @@ WS.rng = (seed) => () => {
     };
 
     unsubGame = [
+      () => document.removeEventListener('keydown', onV),
       WS.bus.on('noteon', () => paintKeys(gameKeys)),
       WS.bus.on('noteoff', () => paintKeys(gameKeys)),
     ];
@@ -5415,6 +5697,7 @@ WS.rng = (seed) => () => {
     WS.ui._runner = null;
     WS.input.qwertyWanted = ['keyboard', 'play', 'ear', 'metronome'].includes(UI.current);
     UI.rerender();
+    if (UI.showAsk) UI.showAsk();
   };
 
   const showSummary = (plan, res, out) => {
@@ -5422,6 +5705,9 @@ WS.rng = (seed) => () => {
     const ls = L.state(plan.id);
     const hud = WS.$('#hud');
     const passed = out.passed;
+    const prevBest = ls.bestScore || 0;
+    const newBest = (res.score || 0) > prevBest;
+    if (newBest) { ls.bestScore = res.score; WS.store.save(); }
     const timing = res.meanOffsetMs == null ? '' : Math.abs(res.meanOffsetMs) < 25 ? 'Timing: right on the beat.' : res.meanOffsetMs < 0 ? `Timing: about ${Math.abs(res.meanOffsetMs)} ms early on average.` : `Timing: about ${res.meanOffsetMs} ms late on average.`;
     const earnedRows = out.earned.map((e) => h('li', { class: `earned earned-${e.kind}` }, UI.oneStar(e.kind, 22),
       ` ${e.kind === 'gold' ? 'Gold' : 'Silver'} star ${e.i + 1}: ${L.starCriteria(d)[e.i]}`));
@@ -5445,6 +5731,7 @@ WS.rng = (seed) => () => {
     const panel = h('section', { class: 'summary', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'sum-title' },
       h('p', { class: 'sheet-kicker', text: d.name }),
       h('h2', { id: 'sum-title', class: `sum-title ${passed ? 'sum-pass' : ''}`, text: passed ? (out.flawless ? 'Flawless' : 'Passed') : 'Not yet' }),
+      h('p', { class: `sum-score${newBest ? ' new-best' : ''}` }, h('span', { class: 'ss-num', text: WS.fmtInt(res.score || 0) }), h('span', { class: 'ss-label', text: newBest ? (prevBest ? `New best! Old best ${WS.fmtInt(prevBest)}` : 'First score on this level') : `Best ${WS.fmtInt(prevBest)}` })),
       h('p', { class: 'sum-line' }, h('strong', { text: `${res.hits} of ${res.n}` }), ` chords landed (11 passes), ${res.perfects} perfect, at ♩ = ${plan.tempo}. ${timing}`),
       coldLine,
       earnedRows.length ? h('ul', { class: 'earned-list' }, earnedRows) : null,
@@ -6429,20 +6716,20 @@ WS.rng = (seed) => () => {
   UI.paintSessionPill = () => {
     const pill = WS.$('#session-pill');
     if (!pill) return;
-    const on = !!LG.session;
+    const on = !!LG.session && LG.sessionMinutes() >= 1;
     pill.hidden = !on && !RC.recording;
     if (RC.recording) { pill.className = 'session-pill rec'; pill.querySelector('.sp-text').textContent = `Recording ${mmss(RC.elapsed())}`; return; }
-    pill.className = `session-pill${LG.session && LG.session.pausedAt ? ' paused' : ''}`;
-    pill.querySelector('.sp-text').textContent = on ? `${LG.session.pausedAt ? 'Paused' : 'Session'} ${mmss(LG.sessionSecs())}` : '';
+    pill.className = 'session-pill';
+    pill.querySelector('.sp-text').textContent = on ? `Practising · ${LG.fmtMin(LG.sessionMinutes())}` : '';
   };
   setInterval(() => UI.paintSessionPill(), 1000);
 
   /* The log form, used for finishing a timed session and for logging one after the fact */
   UI.logForm = (opts = {}) => {
-    const timed = !!LG.session && !opts.manual;
-    const start = timed ? Math.max(1, Math.round(LG.sessionSecs() / 60)) : (opts.entry ? opts.entry.minutes : 20);
+    const timed = false;
+    const start = opts.entry ? opts.entry.minutes : 20;
     const pre = opts.entry || {};
-    const areasPre = new Set(pre.areas || (timed ? LG.session.areas : []));
+    const areasPre = new Set(pre.areas || []);
     UI.sheet((panel, close) => {
       const mins = h('input', { type: 'number', id: 'log-min', min: '1', max: '600', value: String(start), class: 'num' });
       const day = h('input', { type: 'date', id: 'log-day', value: pre.day || WS.todayKey(), max: WS.todayKey() });
@@ -6459,8 +6746,7 @@ WS.rng = (seed) => () => {
       const notes = h('textarea', { id: 'log-notes', rows: '3', placeholder: 'What clicked, what didn’t, what to do next time', text: pre.notes || '' });
       const save = () => {
         const form = { minutes: Number(mins.value) || 1, day: day.value || WS.todayKey(), areas: [...areasPre], piece: piece.value.trim(), bpm: bpm.value ? Number(bpm.value) : null, rating: rating || null, notes: notes.value.trim() };
-        if (pre.id) { LG.update(pre.id, form); WS.toast('Session updated.'); }
-        else if (timed) { LG.finishSession(form); WS.toast(`Logged ${LG.fmtMin(form.minutes)}.`); }
+        if (pre.id) { if (pre.areaMin) form.areaMin = Object.fromEntries(form.areas.map((a) => [a, (pre.areaMin[a] != null ? pre.areaMin[a] : form.minutes / Math.max(1, form.areas.length))])); LG.update(pre.id, form); WS.toast('Session updated.'); }
         else { LG.add(form); WS.toast(`Logged ${LG.fmtMin(form.minutes)}.`); }
         close(); UI.paintSessionPill(); UI.rerender();
       };
@@ -6475,10 +6761,10 @@ WS.rng = (seed) => () => {
           h('label', { for: 'log-bpm', text: 'Tempo reached' }), bpm,
           h('span', { class: 'label', text: 'How it went' }), stars,
           h('label', { for: 'log-notes', text: 'Notes' }), notes),
-        h('p', { class: 'muted small', text: 'Ticking Sight-reading or Score piece here also ticks them on Tonight.' }),
+        pre.summary ? h('p', { class: 'muted small', text: `Woodshed saw: ${pre.summary}` }) : null,
+        h('p', { class: 'muted small', text: pre.auto ? 'Logged automatically. Fix anything that’s off; sight-reading or score piece also ticks Tonight.' : 'For practice away from Woodshed, like the acoustic piano. Ticking Sight-reading or Score piece also ticks them on Tonight.' }),
         h('div', { class: 'sheet-actions' },
           btn(pre.id ? 'Save changes' : 'Save to the log', save, 'btn btn-primary'),
-          timed ? btn('Discard the session', () => { LG.cancelSession(); close(); UI.paintSessionPill(); UI.rerender(); }, 'btn btn-ghost') : null,
           pre.id ? btn('Delete', () => { LG.remove(pre.id); close(); UI.rerender(); }, 'btn btn-ghost') : null));
     });
   };
@@ -6487,25 +6773,49 @@ WS.rng = (seed) => () => {
   UI.sessionCard = () => {
     const card = h('section', { class: 'side-card session-card' });
     const paint = () => {
-      card.replaceChildren(h('h2', { text: 'Practice session' }));
-      if (LG.session) {
-        const t = h('p', { class: 'session-time', text: mmss(LG.sessionSecs()) });
-        const timer = setInterval(() => { if (!document.body.contains(t)) { clearInterval(timer); return; } t.textContent = mmss(LG.sessionSecs()); }, 1000);
-        card.append(t,
-          h('p', { class: 'muted small', text: `Playing time picked up by the keyboard: ${mmss(LG.session.played)}` }),
-          h('div', { class: 'row' },
-            btn('Finish and log', () => UI.logForm(), 'btn btn-primary'),
-            btn(LG.session.pausedAt ? 'Resume' : 'Pause', () => { LG.pauseSession(); paint(); UI.paintSessionPill(); }, 'btn btn-ghost')));
+      if (!document.body.contains(card) && card.isConnected === false && card.childNodes.length) return;
+      card.replaceChildren(h('h2', { text: 'Practice log' }));
+      const x = LG.session;
+      if (x && LG.sessionMinutes() >= 0.5) {
+        const sum = LG.describe(x.did);
+        const am = Object.entries(x.areaMs).filter(([, ms]) => ms >= 20000).sort((a, b) => b[1] - a[1]);
+        card.append(
+          h('p', { class: 'live-session', text: LG.fmtMin(LG.sessionMinutes()) }),
+          h('p', { class: 'muted small', text: 'This session so far. It closes by itself after 10 quiet minutes.' }),
+          am.length ? h('ul', { class: 'live-list' }, am.map(([a, ms]) => h('li', { text: `${LG.AREA[a] ? LG.AREA[a].name : a}: ${LG.fmtMin(ms / 60000)}` }))) : null,
+          sum ? h('p', { class: 'muted small', text: sum }) : null,
+          h('div', { class: 'row' }, btn('Done for now', () => { const e = LG.closeSession(); paint(); UI.paintSessionPill(); if (e && !e.ask) WS.toast(`Logged ${LG.fmtMin(e.minutes)}.`); if (!e) WS.toast('Under 2 minutes, so nothing was logged.'); if (UI.current === 'stats') UI.rerender(); }, 'btn btn-ghost')));
       } else {
-        card.append(h('p', { class: 'muted', text: 'Start the timer when you sit down; log what you did when you stop. Minutes you play are also tracked automatically.' }),
-          h('div', { class: 'row' },
-            btn(h('span', {}, icon('timer', 16), ' Start a session'), () => { LG.startSession(); paint(); UI.paintSessionPill(); }, 'btn btn-primary'),
-            btn('Log one', () => UI.logForm({ manual: true }), 'btn btn-ghost')));
+        card.append(h('p', { class: 'muted', text: 'Woodshed logs your practice by itself: play, and it records how long, what you did and how it went. If it can’t tell what the free play was, it asks once at the end.' }));
       }
+      card.append(h('div', { class: 'row' }, btn('Log practice away from the app', () => UI.logForm({ manual: true }), 'linkish')));
     };
     paint();
+    const t = setInterval(() => { if (!card.isConnected) { clearInterval(t); return; } paint(); }, 15000);
+    const un = WS.bus.on('session', () => { if (!card.isConnected) { un(); return; } paint(); });
     return card;
   };
+
+  /* The one-tap question after a session with unlabeled free play */
+  UI.showAsk = () => {
+    const e = LG.pendingAsk();
+    const old = WS.$('.ask-card');
+    if (old) old.remove();
+    if (!e || document.body.classList.contains('in-game')) return;
+    const free = Math.round((e.areaMin && e.areaMin.free) || 0);
+    const card = h('section', { class: 'ask-card', role: 'dialog', 'aria-labelledby': 'ask-title' },
+      h('button', { type: 'button', class: 'sheet-close', 'aria-label': 'Not now', onclick: () => { LG.dismissAsk(e.id); card.remove(); }, text: '×' }),
+      h('h2', { id: 'ask-title', text: `${LG.fmtMin(e.minutes)} logged ${e.day === WS.todayKey() ? 'just now' : WS.fmtDay(e.day)}. What were the ${free} minutes of free play?` }),
+      h('div', { class: 'ask-chips' }, LG.ASK_CHOICES.map(([v, label]) => btn(label, () => {
+        LG.answerAsk(e.id, v);
+        card.remove();
+        WS.toast(v === 'free' ? 'Logged as free play.' : `Logged as ${label.toLowerCase()}.${v === 'reading' || v === 'score' || v === 'both' ? ' Ticked on Tonight.' : ''}`);
+        if (['tonight', 'stats'].includes(UI.current)) UI.rerender();
+      }, 'chip'))));
+    document.body.append(card);
+    UI.glyphify(card);
+  };
+  WS.bus.on('log-ask', () => setTimeout(UI.showAsk, 50));
 
   /* =========================================================================================
      STATS
@@ -6573,7 +6883,9 @@ WS.rng = (seed) => () => {
         h('span', { class: 'log-day', text: WS.fmtDay(e.day) }),
         h('span', { class: 'log-min', text: LG.fmtMin(e.minutes) }),
         h('span', { class: 'log-what' },
-          h('span', { text: e.areas.map((a) => (LG.AREA[a] ? LG.AREA[a].name : a)).join(', ') || 'Practice' }),
+          h('span', { text: e.areaMin && Object.keys(e.areaMin).length ? Object.entries(e.areaMin).sort((a, b) => b[1] - a[1]).map(([a, m]) => `${LG.AREA[a] ? LG.AREA[a].name : a} ${Math.round(m)}m`).join(', ') : e.areas.map((a) => (LG.AREA[a] ? LG.AREA[a].name : a)).join(', ') || 'Practice' }),
+          e.auto ? h('span', { class: 'auto-tag', text: e.ask ? 'needs a label' : 'auto' }) : null,
+          e.summary ? h('span', { class: 'log-notes muted small', text: e.summary }) : null,
           e.piece ? h('span', { class: 'muted', text: ` · ${e.piece}` }) : null,
           e.bpm ? h('span', { class: 'muted', text: ` · ♩ = ${e.bpm}` }) : null,
           e.notes ? h('span', { class: 'log-notes muted small', text: e.notes }) : null),
@@ -6583,8 +6895,8 @@ WS.rng = (seed) => () => {
     };
     renderLog(showN);
     root.append(h('section', { class: 'panel' },
-      h('div', { class: 'panel-h' }, h('h2', { text: 'Practice log' }), btn('Log a session', () => UI.logForm({ manual: true }), 'btn btn-ghost btn-sm')),
-      log.length ? logBody : h('p', { class: 'muted', text: 'Nothing logged yet. Start a session timer, or log one after you play.' })));
+      h('div', { class: 'panel-h' }, h('h2', { text: 'Practice log' }), btn('Add practice away from the app', () => UI.logForm({ manual: true }), 'btn btn-ghost btn-sm')),
+      log.length ? logBody : h('p', { class: 'muted', text: 'Nothing logged yet. Play and it fills in by itself.' })));
 
     // Tempo progress per Chord Runner level
     const tempoRows = WS.levels.LEVELS.map((d) => [d, LG.tempoHistory(d.id)]).filter(([, hst]) => hst.length);
@@ -7017,11 +7329,12 @@ WS.rng = (seed) => () => {
     WS.progress.applyFreezes();
     WS.log.restoreSession();
     WS.ach.boot();
+    setTimeout(() => WS.ui.showAsk(), 800);
     checkDay();
 
     window.addEventListener('hashchange', () => WS.ui.go(location.hash.slice(1) || 'tonight'));
     WS.$('#kbd-pill').addEventListener('click', () => { location.hash = '#keyboard'; });
-    WS.$('#session-pill').addEventListener('click', () => { if (WS.recorder.recording) location.hash = '#play'; else if (WS.log.session) WS.ui.logForm(); });
+    WS.$('#session-pill').addEventListener('click', () => { if (WS.recorder.recording) location.hash = '#play'; else location.hash = '#stats'; });
     WS.bus.on('inputstatus', () => WS.ui.refreshRail());
     WS.ui.go(location.hash.slice(1) || 'tonight');
 
