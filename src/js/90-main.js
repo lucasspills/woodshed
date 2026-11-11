@@ -44,6 +44,17 @@
       }, 2);
       return r.prompts.map((p) => p.sym);
     };
+    // Ear games: answer the current question right (or wrong)
+    D.earAnswer = (correct = true) => {
+      const g = WS.ui._ear;
+      if (!g || g.phase !== 'answer') return false;
+      const q = g.qn;
+      if (q.gid === 'quality') { const wrong = WS.ear.def('quality').levels.flatMap((l) => l.qs).find((x) => x !== q.q); g.answerQuality(correct ? q.q : wrong); return true; }
+      const t = performance.now();
+      const notes = q.gid === 'echo' ? q.play.melody : q.gid === 'bass' ? q.play.chords.map((c) => c.bass) : q.play.notes;
+      notes.forEach((n, i) => { const nn = correct ? n : n + 1; WS.input.inject(nn, true, t + i); WS.input.inject(nn, false, t + i + 1); });
+      return true;
+    };
     // Tempo override for fast tests
     const orig = WS.levels.planRound;
     WS.levels.planRound = (id, mode) => {
@@ -75,10 +86,13 @@
     await WS.store.load();
     if (WS.DEBUG) setupDebug();
     WS.progress.applyFreezes();
+    WS.log.restoreSession();
+    WS.ach.boot();
     checkDay();
 
     window.addEventListener('hashchange', () => WS.ui.go(location.hash.slice(1) || 'tonight'));
     WS.$('#kbd-pill').addEventListener('click', () => { location.hash = '#keyboard'; });
+    WS.$('#session-pill').addEventListener('click', () => { if (WS.recorder.recording) location.hash = '#play'; else if (WS.log.session) WS.ui.logForm(); });
     WS.bus.on('inputstatus', () => WS.ui.refreshRail());
     WS.ui.go(location.hash.slice(1) || 'tonight');
 

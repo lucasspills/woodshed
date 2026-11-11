@@ -110,17 +110,21 @@
     pill.className = cls;
     pill.querySelector('.kbd-text').textContent = text;
     WS.$$('.nav-link').forEach((a) => a.classList.toggle('active', a.dataset.view === UI.current));
+    if (UI.paintSessionPill) UI.paintSessionPill();
   };
 
   /* ---------------- Router ---------------- */
   const VIEWS = {};
   UI.current = 'tonight';
+  const ALIAS = { progress: 'stats', log: 'stats', achievements: 'trophies', games: 'path' };
   UI.go = (name) => {
+    if (ALIAS[name]) name = ALIAS[name];
     if (!VIEWS[name]) name = 'tonight';
     if (UI.current === 'play' && name !== 'play' && UI._leavePlay) UI._leavePlay();
+    if (UI.current === 'ear' && WS.ear) { WS.ear.stopAudio(); UI._earActive = false; }
     UI.current = name;
-    WS.input.qwertyWanted = name === 'keyboard' || name === 'play';
-    WS.input.forceSound = name === 'play';
+    WS.input.qwertyWanted = ['keyboard', 'play', 'ear', 'metronome'].includes(name);
+    WS.input.forceSound = name === 'play' || name === 'ear' || name === 'metronome';
     WS.input.qwertySustain = name === 'play';
     WS.rig.active = name === 'play';
     const main = WS.$('#view');
@@ -202,37 +206,55 @@
       h('span', { class: 'step-num', 'aria-hidden': 'true', text: '2' }),
       h('div', { class: 'step-body' },
         h('h3', {}, 'Sight-reading ', h('span', { class: 'step-time', text: '7 min' })),
-        h('p', { text: 'Something new from your books. Scan it for 20 seconds, metronome at 50 to 60, and never stop.' })),
+        h('p', { text: 'Something new from your books. Scan it for 30 seconds, metronome at 50 to 60, and never stop.' }),
+        plan.row ? h('p', { class: 'drill-ref', text: `This week: ${plan.row.reading}` }) : null,
+        h('div', { class: 'step-actions' }, h('button', { type: 'button', class: 'linkish', onclick: () => UI.openDrill('SR') }, 'The SR card'), h('button', { type: 'button', class: 'linkish', onclick: () => { location.hash = '#metronome'; } }, 'Metronome'))),
       toggle('sight', 'Mark done'));
 
     const score = h('li', { class: `step${doneStep(day.score)}` },
       h('span', { class: 'step-num', 'aria-hidden': 'true', text: '3' }),
       h('div', { class: 'step-body' },
         h('h3', {}, 'Score piece ', h('span', { class: 'step-time', text: '8 min' })),
-        h('p', { text: plan.row ? plan.row.score : 'Your current score piece, chunk by chunk.' })),
+        h('p', { text: plan.row ? plan.row.score : 'Your current score piece, chunk by chunk.' }),
+        h('div', { class: 'step-actions' }, h('button', { type: 'button', class: 'linkish', onclick: () => UI.openDrill('SP') }, 'The SP method'), plan.row && plan.row.codes.score ? h('button', { type: 'button', class: 'linkish', onclick: () => UI.openDrill(plan.row.codes.score) }, 'The piece') : null)),
       toggle('score', 'Mark done'));
 
     // Step 4: focus
     let focusBody;
     const focusTitle = { harmony: 'Focus: harmony', improv: 'Focus: improv', ear: 'Focus: ear', review: 'Review' }[plan.focus];
+    const cardBtn = plan.code && WS.roadmap.drill(plan.code) ? h('button', { type: 'button', class: 'btn btn-ghost', onclick: () => UI.openDrill(plan.code) }, `Open the ${plan.code} card`) : null;
     if (plan.focus === 'harmony' || plan.focus === 'improv') {
       const id = plan.levelId || plan.fallbackLevel;
       const d = id ? L.def(id) : null;
       focusBody = h('div', { class: 'step-body' },
         h('h3', {}, focusTitle, ' ', h('span', { class: 'step-time', text: '15 min' })),
         plan.drill ? h('p', { class: 'drill-ref', text: `Roadmap: ${plan.drill}` }) : null,
-        d ? h('p', {}, plan.levelId ? 'In the app: ' : plan.inApp ? 'That level is still locked. Next up: ' : 'Not in the app yet. Warm-up pick: ', h('strong', { text: `Chord Runner, ${d.name}` })) : null,
-        d ? h('div', { class: 'step-actions' }, h('button', { type: 'button', class: 'btn btn-primary', onclick: () => UI.openLevel(id) }, UI.icon('play', 16), ' Play')) : null);
+        d ? h('p', {}, plan.levelId ? 'In the app: ' : plan.inApp ? 'That level is still locked. Next up: ' : 'Not a Chord Runner drill; do it from the card. Warm-up pick: ', h('strong', { text: `Chord Runner, ${d.name}` })) : null,
+        h('div', { class: 'step-actions' },
+          d ? h('button', { type: 'button', class: 'btn btn-primary', onclick: () => UI.openLevel(id) }, UI.icon('play', 16), ' Play') : null,
+          cardBtn));
+    } else if (plan.focus === 'ear') {
+      const g = plan.earGame && WS.ear ? WS.ear.def(plan.earGame) : null;
+      const li = g ? WS.ear.nextLevel(g.id) : 0;
+      focusBody = h('div', { class: 'step-body' },
+        h('h3', {}, focusTitle, ' ', h('span', { class: 'step-time', text: '15 min' })),
+        h('p', { class: 'drill-ref', text: `Roadmap: ${plan.drill || 'E-drill from the Drill Library'}` }),
+        g ? h('p', {}, 'In the app: ', h('strong', { text: `${g.name}, ${g.levels[li].name}` }), '. Then the song work from the card.') : null,
+        h('div', { class: 'step-actions' },
+          g ? h('button', { type: 'button', class: 'btn btn-primary', onclick: () => { location.hash = '#ear'; setTimeout(() => UI.startEar(g.id, li), 30); } }, UI.icon('play', 16), ` Play ${g.name}`) : null,
+          cardBtn));
     } else {
       focusBody = h('div', { class: 'step-body' },
-        h('h3', {}, focusTitle, ' ', h('span', { class: 'step-time', text: plan.focus === 'review' ? '15 min' : '15 min' })),
-        h('p', { class: 'drill-ref', text: plan.focus === 'ear' ? `Roadmap: ${plan.drill || 'E-drill from the Drill Library'}` : plan.drill }),
-        h('p', { class: 'muted', text: plan.focus === 'ear' ? 'Ear games aren’t built yet. Use the drill card in the Drill Library tab.' : 'Use any gold chances above, then record and listen back.' }));
+        h('h3', {}, focusTitle, ' ', h('span', { class: 'step-time', text: '15 min' })),
+        h('p', { class: 'drill-ref', text: plan.drill }),
+        h('div', { class: 'step-actions' },
+          h('button', { type: 'button', class: 'btn btn-primary', onclick: () => { location.hash = '#play'; } }, 'Record on the Play screen'),
+          h('button', { type: 'button', class: 'btn btn-ghost', onclick: () => { location.hash = '#stats'; } }, 'Look over the week')));
     }
     const focus = h('li', { class: `step${doneStep(day.focus)}` },
       h('span', { class: 'step-num', 'aria-hidden': 'true', text: '4' }),
       focusBody,
-      plan.focus === 'harmony' || plan.focus === 'improv' ? (day.focus ? h('span', { class: 'check on static' }, h('span', { class: 'check-box', 'aria-hidden': 'true' }), 'Done') : null) : toggle('focus', 'Mark done'));
+      plan.focus !== 'review' && day.focus ? h('span', { class: 'check on static' }, h('span', { class: 'check-box', 'aria-hidden': 'true' }), 'Done') : toggle('focus', 'Mark done'));
 
     const coreNote = day.core
       ? h('p', { class: 'core-note core-done', text: 'Core done. Tonight counts toward your week and your streak.' })
@@ -246,6 +268,15 @@
         h('p', { text: WS.input.midiSupported() ? 'Not connected. Plug in your keyboard and connect it, or play with your computer keys for now.' : 'This browser can’t read MIDI. Open Woodshed in Chrome to use your keyboard.' }),
         btn('Open keyboard setup', () => { location.hash = '#keyboard'; }, 'btn btn-ghost')));
     }
+    side.append(UI.sessionCard());
+    const RMx = WS.roadmap;
+    const curPh = RMx.currentPhase();
+    const pp = RMx.phaseProgress(curPh);
+    side.append(h('section', { class: 'side-card' },
+      h('h2', { text: `Phase ${curPh}: ${RMx.PHASES[curPh - 1].name}` }),
+      h('span', { class: 'pbar' }, h('i', { style: { width: `${pp.pct}%` } })),
+      h('p', { class: 'muted small', text: `${pp.passed} of ${pp.drills} drills passed · ${pp.checks} of ${pp.checkTotal} milestones` }),
+      btn('Open the roadmap', () => { location.hash = '#roadmap'; }, 'btn btn-ghost')));
     const nh = L.nextInLane('harmony');
     const ni = L.nextInLane('improv');
     side.append(h('section', { class: 'side-card' },
@@ -276,10 +307,11 @@
     const recI = L.nextInLane('improv');
     root.append(h('header', { class: 'page-head' },
       h('div', { class: 'page-head-text' },
-        h('h1', { class: 'page-title', text: 'The path' }),
-        h('p', { class: 'page-sub', text: 'Phase 1, Foundation. Each level needs a silver star to open the next one. Gold stars come from a clean first try on a later day.' }))));
+        h('h1', { class: 'page-title', text: 'Games' }),
+        h('p', { class: 'page-sub', text: 'Chord Runner levels and the ear games. Each level needs a silver star to open the next one. Gold stars come from a clean first try on a later day.' }))));
     const lanes = h('div', { class: 'lanes' });
     for (const lane of L.LANES) {
+      if (lane.id === 'ear' && UI.earLane) { lanes.append(UI.earLane()); continue; }
       if (lane.locked) {
         lanes.append(h('section', { class: 'lane lane-locked' },
           h('h2', { text: lane.name }), h('p', { class: 'lane-blurb', text: lane.blurb }),
@@ -496,7 +528,7 @@
     unsubGame = [];
     runner = null;
     WS.ui._runner = null;
-    WS.input.qwertyWanted = UI.current === 'keyboard' || UI.current === 'play';
+    WS.input.qwertyWanted = ['keyboard', 'play', 'ear', 'metronome'].includes(UI.current);
     UI.rerender();
   };
 
@@ -651,7 +683,7 @@
     const vels = new Map();
 
     const paintKb = () => {
-      const held = new Set(I.notes());
+      const held = new Set([...I.notes(), ...WS.recorder.playHeld]);
       const sus = new Set(R.sustainedNotes());
       for (const [n, r] of Object.entries(kb._map)) {
         const k = Number(n);
@@ -678,6 +710,7 @@
       WS.bus.on('noteon', (e) => {
         vels.set(e.n, e.vel);
         velOut.querySelector('strong').textContent = String(e.vel);
+        if (e.src === 'playback') { paintKb(); return; }
         const now = performance.now();
         const d = log();
         if (lastNote && now - lastNote < 20000) d.sec += (now - lastNote) / 1000;
@@ -722,6 +755,9 @@
       inputLine,
       h('div', { class: 'play-sound' }, soundLine, meter, startBtn),
       todayOut));
+    const recPanel = UI.recorderPanel();
+    root.querySelector('.play-top').append(recPanel.querySelector('.rec-head'));
+    root.append(recPanel);
 
     /* ---- Sound: mode, then the instruments for that mode ---- */
     const modeBody = h('div', { class: 'mode-body' });

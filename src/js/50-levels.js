@@ -21,7 +21,7 @@
   const LANES = [
     { id: 'harmony', name: 'Harmony', blurb: 'Chord qualities in every key', levels: LEVELS.filter((l) => l.lane === 'harmony').map((l) => l.id) },
     { id: 'improv', name: 'Improv', blurb: 'Left-hand shell voicings on ii–V–I', levels: LEVELS.filter((l) => l.lane === 'improv').map((l) => l.id) },
-    { id: 'reading', name: 'Reading', blurb: 'Sight-reading', locked: true, soon: 'Note Rain, the sight-reading trainer, is the next build. Keep reading from your books for now.' },
+    { id: 'reading', name: 'Reading', blurb: 'Sight-reading', locked: true, soon: 'Note Rain, the sight-reading trainer, is on the build list. Read from your books for now; the SR card on the roadmap has the method.' },
     { id: 'ear', name: 'Ear', blurb: 'Scale degrees and bass lines', locked: true, soon: 'Echo and Bass Detective come after Note Rain. Use the E-drills in the Drill Library for now.' },
   ];
 
@@ -253,6 +253,7 @@
     });
     if (s.rounds.length > 600) s.rounds.splice(0, s.rounds.length - 600);
     WS.store.save();
+    WS.bus.emit('round', { id: plan.id, passed, earned: out.earned });
     return out;
   };
 
